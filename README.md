@@ -1,11 +1,33 @@
-# Assignment 5 The Botnet Saves the World
+# TSAM Assignment 5 - The Botnet Saves the World
 
-## Compiling the program
+## Group Members
 
-To compile client.cpp tsamgroup9.cpp run the Makefile with
+- **Vigdís Helga Eyjólfsdóttir** - <vigdis23@ru.is>
+- **Friðrik Fannar Söebech** - <fridriks23@ru.is>
+- **Kristófer Helgi Sigurðsson** - <kristoferhs22@ru.is>
+
+## Contents
+
+- `tsamgroup9.cpp`
+- `client.cpp`
+- `Makefile`
+
+## Build
+
+Requires Linux / macOS with g++ (C++23).
 
 ```bash
+# Builds both at the same time
 make
+
+# Build server
+make tsamgroup9
+
+# Build client
+make client
+
+# Remove tsamgroup9 and client executables
+make clean
 ```
 
 ## Executing the Server and Client
@@ -14,6 +36,9 @@ To execute the server
 
 ```bash
 ./tsamgroup9 <port>
+
+# Example
+./tsamgroup9 4009
 ```
 
 To execute the client
