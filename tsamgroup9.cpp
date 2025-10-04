@@ -106,7 +106,10 @@ uint16_t setup_server(int16_t port, int64_t &server_fd, int64_t &epoll_fd,
   return 0;
 }
 
-void handle_client(int64_t client_fd) {}
+void handle_client(int64_t client_fd) {
+  // Read from client and add switch case to determine which server command
+  // function to execute
+}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
