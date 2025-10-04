@@ -14,7 +14,7 @@
 
 ## Build
 
-Requires Linux / macOS with g++ (C++23).
+Requires Linux with g++ (C++23). This code was developed using Arch Linux and Ubuntu
 
 ```bash
 # Builds both at the same time
