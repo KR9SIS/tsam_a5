@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
+#include <vector>
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 constexpr u_int8_t MAX_CLIENTS = 10; // Maximum number of clients
@@ -18,6 +19,32 @@ void write_error(std::string msg) {
   std::error_code ec(errno, std::system_category());
   std::cerr << msg << "\nret: " << ec.value() << "\nmsg: " << ec.message()
             << "\n";
+}
+
+int16_t send_stream(std::string cmd_str, int64_t client_fd) {
+  // Message markers
+  char soh = 0x01;
+  char stx = 0x02;
+  char etx = 0x03;
+
+  // Create data
+  std::vector<char> cmd;
+  cmd.push_back(soh);
+  cmd.push_back(cmd_str.length());
+  cmd.push_back(stx);
+  for (char c : cmd_str) {
+    cmd.push_back(c);
+  }
+  cmd.push_back(etx);
+
+  // Convert data to network byte order
+  for (int i = 0; i < cmd.size(); i++) {
+    cmd[i] = htons(cmd[i]);
+  }
+
+  send(client_fd, cmd.data(), cmd.size(), 0);
+
+  return 0;
 }
 
 int16_t send_helo() { return 0; }
