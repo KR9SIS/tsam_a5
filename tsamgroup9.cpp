@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   while (!finished) {
     // WARN: -1 is no timeout, this will block until
     // a file descriptor delivers an event
-    if ((num_events = epoll_wait(epoll_fd, events, MAX_EVENTS, -1)) < 0) {
+    if ((num_events = epoll_wait(epoll_fd, events, MAX_EVENTS, -1)) < 1) {
       std::error_code ec(errno, std::system_category());
       std::cerr << "Failed to wait for events\nret: " << ec.value()
                 << "\nmsg: " << ec.message() << "\n";
