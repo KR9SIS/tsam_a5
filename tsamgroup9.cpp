@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <inttypes.h>
@@ -83,7 +84,7 @@ uint16_t setup_server(int16_t port, int64_t &server_fd, int64_t &epoll_fd,
     return -1;
   }
 
-  if ((epoll_fd = epoll_create(0)) < 0) {
+  if ((epoll_fd = epoll_create1(0)) < 1) {
     std::error_code ec(errno, std::system_category());
     std::cerr << "Failed to create epoll instance\nret: " << ec.value()
               << "\nmsg: " << ec.message() << "\n";
