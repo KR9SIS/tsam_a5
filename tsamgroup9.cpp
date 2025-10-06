@@ -14,6 +14,12 @@ constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 constexpr u_int8_t MAX_CLIENTS = 10; // Maximum number of clients
 constexpr u_int8_t MAX_EVENTS = 10;  // Maximum number of events
 
+void write_error(std::string msg) {
+  std::error_code ec(errno, std::system_category());
+  std::cerr << msg << "\nret: " << ec.value() << "\nmsg: " << ec.message()
+            << "\n";
+}
+
 int16_t send_helo() { return 0; }
 
 int16_t recv_helo() { return 0; }
@@ -42,18 +48,14 @@ int64_t open_socket(int16_t port) {
   // Create socket for connection. Set to be non-blocking, so recv will
   // return immediately if there isn't anything waiting to be read.
   if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to open socket\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to open socket");
     return -1;
   }
 
   // Turn on SO_REUSEADDR to allow socket to be quickly reused after
   // program exit.
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to set SO_REUSEADDR\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to set SO_REUSEADDR");
   }
 
   memset(&sk_addr, 0, sizeof(sk_addr));
@@ -64,9 +66,7 @@ int64_t open_socket(int16_t port) {
 
   // Bind to socket to listen for connections from clients
   if (bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to bind to socket\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to bind to socket");
     return -1;
   } else {
     return sock;
@@ -76,24 +76,18 @@ int64_t open_socket(int16_t port) {
 uint16_t setup_server(int16_t port, int64_t &server_fd, int64_t &epoll_fd,
                       epoll_event &event) {
   if ((server_fd = open_socket(port)) < 0) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to open socket\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to open socket");
     return -1;
   }
 
   if (listen(server_fd, MAX_CLIENTS) == -1) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to listen to server socket\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to listen to server socket");
     close(server_fd);
     return -1;
   }
 
   if ((epoll_fd = epoll_create1(0)) < 1) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to create epoll instance\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to create epoll instance");
     close(server_fd);
     return -1;
   }
@@ -102,10 +96,7 @@ uint16_t setup_server(int16_t port, int64_t &server_fd, int64_t &epoll_fd,
   event.events = EPOLLIN;
   event.data.fd = server_fd;
   if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) == -1) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to add server socket to epoll instance\nret: "
-              << ec.value() << "\nmsg: " << ec.message() << "\n";
-
+    write_error("Failed to add server socket to epoll instance");
     close(server_fd);
     close(epoll_fd);
     return 1;
@@ -125,9 +116,7 @@ int main(int argc, char **argv) {
   event = {0};
 
   if (setup_server(port, server_fd, epoll_fd, event) < 0) {
-    std::error_code ec(errno, std::system_category());
-    std::cerr << "Failed to set up server\nret: " << ec.value()
-              << "\nmsg: " << ec.message() << "\n";
+    write_error("Failed to set up server");
     return -1;
   }
   std::cout << "Server started. Listening on port " << port << "\n";
@@ -138,9 +127,7 @@ int main(int argc, char **argv) {
     // WARN: -1 is no timeout, this will block until
     // a file descriptor delivers an event
     if ((num_events = epoll_wait(epoll_fd, events, MAX_EVENTS, -1)) < 1) {
-      std::error_code ec(errno, std::system_category());
-      std::cerr << "Failed to wait for events\nret: " << ec.value()
-                << "\nmsg: " << ec.message() << "\n";
+      write_error("Failed to wait for events");
       return -1;
     }
     for (int16_t i = 0; i < num_events; ++i) {
@@ -152,9 +139,7 @@ int main(int argc, char **argv) {
 
         if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
                                 &client_add_len)) < 0) {
-          std::error_code ec(errno, std::system_category());
-          std::cerr << "Failed to accept client connection\nret: " << ec.value()
-                    << "\nmsg: " << ec.message() << "\n";
+          write_error("Failed to accept client connection");
           continue;
         }
 
@@ -162,9 +147,7 @@ int main(int argc, char **argv) {
         event.events = EPOLLIN;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-          std::error_code ec(errno, std::system_category());
-          std::cerr << "Failed to add client socket to epoll instance\nret: "
-                    << ec.value() << "\nmsg: " << ec.message() << "\n";
+          write_error("Failed to add client socket to epoll instance");
           close(client_fd);
           continue;
         }
