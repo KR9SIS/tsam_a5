@@ -122,6 +122,7 @@ int main(int argc, char **argv) {
   int16_t port = atoi(argv[1]);
   int64_t server_fd, epoll_fd;
   struct epoll_event event, events[MAX_EVENTS];
+  event = {0};
 
   if (setup_server(port, server_fd, epoll_fd, event) < 0) {
     std::error_code ec(errno, std::system_category());
