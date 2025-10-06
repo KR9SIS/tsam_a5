@@ -28,6 +28,12 @@ int16_t req_status() { return 0; }
 
 int16_t resp_status() { return 0; }
 
+void handle_client(int64_t client_fd) {
+  // Read from client and add switch case to determine which server command
+  // function to execute
+  std::cout << "Client: " << client_fd << " called\n";
+}
+
 int64_t open_socket(int16_t port) {
   struct sockaddr_in sk_addr; // address settings for bind()
   int64_t sock;               // socket opened for this port
@@ -105,11 +111,6 @@ uint16_t setup_server(int16_t port, int64_t &server_fd, int64_t &epoll_fd,
     return 1;
   }
   return 0;
-}
-
-void handle_client(int64_t client_fd) {
-  // Read from client and add switch case to determine which server command
-  // function to execute
 }
 
 int main(int argc, char **argv) {
