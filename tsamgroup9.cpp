@@ -17,8 +17,8 @@
 #define ETX 0x03
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
-constexpr u_int8_t MAX_CLIENTS = 10; // Maximum number of clients
-constexpr u_int8_t MAX_EVENTS = 10;  // Maximum number of events
+constexpr u_int8_t MAX_CLIENTS = 8; // Maximum number of clients
+constexpr u_int8_t MAX_EVENTS = 10; // Maximum number of events
 
 void write_error(std::string msg, FILE* fd = stderr) {
     std::error_code ec(errno, std::system_category());
