@@ -139,43 +139,42 @@ int main(int argc, char **argv) {
       std::error_code ec(errno, std::system_category());
       std::cerr << "Failed to wait for events\nret: " << ec.value()
                 << "\nmsg: " << ec.message() << "\n";
-      finished = true;
-    } else {
-      for (int16_t i = 0; i < num_events; ++i) {
-        if (events[i].data.fd == server_fd) {
-          // Accept new client connection
-          struct sockaddr_in client_addr;
-          socklen_t client_add_len = sizeof(client_addr);
-          int64_t client_fd;
+      return -1;
+    }
+    for (int16_t i = 0; i < num_events; ++i) {
+      if (events[i].data.fd == server_fd) {
+        // Accept new client connection
+        struct sockaddr_in client_addr;
+        socklen_t client_add_len = sizeof(client_addr);
+        int64_t client_fd;
 
-          if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
-                                  &client_add_len)) < 0) {
-            std::error_code ec(errno, std::system_category());
-            std::cerr << "Failed to wait accept client connection\nret: "
-                      << ec.value() << "\nmsg: " << ec.message() << "\n";
-            continue;
-          }
-
-          // Add client socket to epoll
-          event.events = EPOLLIN;
-          event.data.fd = client_fd;
-          if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-            std::error_code ec(errno, std::system_category());
-            std::cerr << "Failed to add client socket to epoll instance\nret: "
-                      << ec.value() << "\nmsg: " << ec.message() << "\n";
-            close(client_fd);
-            continue;
-          }
-
-          // Create a new thread to handle the client connection
-          std::thread clien_thread(handle_client, client_fd);
-          clien_thread.detach();
-        } else {
-          // Handle client data
-          int64_t client_fd = events[i].data.fd;
-          std::thread clien_thread(handle_client, client_fd);
-          clien_thread.detach();
+        if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
+                                &client_add_len)) < 0) {
+          std::error_code ec(errno, std::system_category());
+          std::cerr << "Failed to accept client connection\nret: " << ec.value()
+                    << "\nmsg: " << ec.message() << "\n";
+          continue;
         }
+
+        // Add client socket to epoll
+        event.events = EPOLLIN;
+        event.data.fd = client_fd;
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
+          std::error_code ec(errno, std::system_category());
+          std::cerr << "Failed to add client socket to epoll instance\nret: "
+                    << ec.value() << "\nmsg: " << ec.message() << "\n";
+          close(client_fd);
+          continue;
+        }
+
+        // Create a new thread to handle the client connection
+        std::thread client_thread(handle_client, client_fd);
+        client_thread.detach();
+      } else {
+        // Handle client data
+        int64_t client_fd = events[i].data.fd;
+        std::thread client_thread(handle_client, client_fd);
+        client_thread.detach();
       }
     }
   }
