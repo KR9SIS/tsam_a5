@@ -1,10 +1,37 @@
-PHONY.: client tsamgroup9
+CXX = g++
+FLAGS =  -std=c++23 -Wall -Werror
+SRCDIR = src/
+BINDIR = bin/
+OBJDIR = obj/
+INCLUDE = -I ./include/
 
-client: client.cpp
-	g++ -std=c++23 -Wall -Werror client.cpp -o $@
+CLIENTSRC = $(addprefix $(SRCDIR), client.cpp helpers.cpp)
+SERVERSRC = $(addprefix $(SRCDIR), tsamgroup9.cpp helpers.cpp)
+CLIENTOBJ = $(CLIENTSRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+SERVEROBJ = $(SERVERSRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
-tsamgroup9: tsamgroup9.cpp
-	g++ -std=c++23 -Wall -Werror tsamgroup9.cpp -o $@
+CLIENT = $(addprefix $(BINDIR), client)
+SERVER = $(addprefix $(BINDIR), tsamgroup9)
+
+PHONY.: client server all
+
+all: $(CLIENT) $(SERVER)
+
+client: $(CLIENT)
+
+server: $(SERVER)
+
+$(CLIENT): $(CLIENTSRC) | $(BINDIR)
+	$(CXX) $(CLIENTOBJ) -o $(CLIENT) $(INCLUDE)
+
+$(SERVER): $(SERVERSRC) | $(BINDIR)
+	$(CXX) $(SERVEROBJ) -o $(SERVER) $(INCLUDE)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
+	$(CXX) -c $< -o $@ $(FLAGS) $(INCLUDE)
+
+$(OBJDIR) $(BINDIR):
+	mkdir -p $@
 
 clean:
-	rm -f client tsamgroup9
+	rm -rf $(OBJDIR) $(BINDIR)
