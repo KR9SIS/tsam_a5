@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     bool finished = false;
     int16_t num_events;
     while (!finished) {
-        int num_events = serv.Wait();
+        int num_events = serv.WaitForEvents();
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.CheckForNewClient(i)) {
                 serv.RegisterClient();
