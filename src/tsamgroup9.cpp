@@ -1,3 +1,5 @@
+#include "helpers.h"
+#include "server.hpp"
 #include <arpa/inet.h>
 #include <cstdint>
 #include <inttypes.h>
@@ -6,18 +8,14 @@
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
-#include <thread>
 #include <unistd.h>
 #include <vector>
-#include "helpers.h"
-#include "server.hpp"
 
 #define SOH 0x01
 #define STX 0x02
 #define ETX 0x03
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
-
 
 int16_t send_stream(std::string stream_str, int64_t client_fd) {
     constexpr int16_t MAX_STREAM_LEN = 5000;

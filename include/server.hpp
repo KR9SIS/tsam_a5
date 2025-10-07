@@ -6,25 +6,26 @@
 #define MAX_EVENTS 10
 #define EPOLL_BLOCK -1
 
+#include "helpers.h"
+#include <cstdint>
 #include <cstdlib>
 #include <netinet/in.h>
 #include <sys/epoll.h>
-#include <cstdint>
 #include <unistd.h>
-#include "helpers.h"
 
-class Server{
+class Server {
     int64_t server_fd, epoll_fd;
-    epoll_event event,poll_events[MAX_EVENTS];
+    epoll_event event, poll_events[MAX_EVENTS];
 
     int64_t open_socket(int16_t port) {
         sockaddr_in sk_addr = {0}; // address settings for bind()
-        int64_t sock;               // socket opened for this port
-        int set = 1;                // for setsockopt
+        int64_t sock;              // socket opened for this port
+        int set = 1;               // for setsockopt
 
         // Create socket for connection. Set to be non-blocking, so recv will
         // return immediately if there isn't anything waiting to be read.
-        if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
+        if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) <
+            0) {
             write_error("Failed to open socket");
             return -1;
         }
@@ -48,21 +49,19 @@ class Server{
         }
     }
 
-
-    void cleanup(){
-        if(server_fd != -1){
+    void cleanup() {
+        if (server_fd != -1) {
             close(server_fd);
             server_fd = -1;
         }
-        if(epoll_fd != -1){
+        if (epoll_fd != -1) {
             close(epoll_fd);
             epoll_fd = -1;
         }
-
     }
 
-public:
-    Server(int16_t port): server_fd(-1), epoll_fd(-1){
+  public:
+    Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = open_socket(port)) < 0) {
             write_error("Failed to open socket");
             exit(-1);
@@ -90,13 +89,14 @@ public:
         }
     }
 
-    bool CheckForNewClient(int event_index){
+    bool CheckForNewClient(int event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
 
-    int Wait(){
+    int Wait() {
         int num_events;
-        if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 1) {
+        if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
+                                     EPOLL_BLOCK)) < 1) {
             write_error("Failed to wait for events");
             cleanup();
             exit(-1);
@@ -106,7 +106,7 @@ public:
     }
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
-    void RegisterClient(){
+    void RegisterClient() {
         // Accept new client connection
         struct sockaddr_in client_addr;
         socklen_t client_add_len = sizeof(client_addr);
@@ -128,21 +128,21 @@ public:
         }
     }
 
-    /*Grabs The Socket FD For The Socket That Triggered Event At Index event_index*/
-    int64_t GetEventSocket(int event_index){
+    /*Grabs The Socket FD For The Socket That Triggered Event At Index
+     * event_index*/
+    int64_t GetEventSocket(int event_index) {
         return poll_events[event_index].data.fd;
     }
 
     /*Dispatches a new thread running handler with the supplied arguments*/
-    template<typename Func, typename ... Args>
-    void Dispatch(Func&& handler, Args&&... arguments){
-        std::thread client_thread(std::forward<Func>(handler), std::forward<Args>(arguments)...);
+    template <typename Func, typename... Args>
+    void Dispatch(Func &&handler, Args &&...arguments) {
+        std::thread client_thread(std::forward<Func>(handler),
+                                  std::forward<Args>(arguments)...);
         client_thread.detach();
     }
 
-    ~Server(){
-        cleanup();
-    }
+    ~Server() { cleanup(); }
 };
 
 #endif
