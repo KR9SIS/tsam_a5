@@ -6,6 +6,7 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <string>
+#include <sstream>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -77,11 +78,29 @@ int16_t resp_status() { return 0; }
 // TODO: Change this func, so it handles read stuff
 void handle_client(int64_t client_fd) {
     // Read from client and add switch case to determine which server command
-    // function to execute
+    // function to execute - You cannot use switch with strings
     std::cout << "Client: " << client_fd << " called\n";
 
-    char buffer[2048];
+    char buffer[5000];
     memset(buffer, 0, sizeof(buffer));
+
+    uint16_t received_bytes = read(client_fd, buffer, sizeof(buffer) - 1);
+
+    char command[received_bytes];
+
+    for (int i = 0; i < received_bytes; ++i) {
+        if (buffer[i] == ',') {
+            break;
+        } else {
+            command[i] = buffer[i];
+        }
+    }
+
+    if (command == "HELO") {
+        recv_helo();
+    }
+
+    // TODO: Finish this, this code is shit!!
 }
 
 int main(int argc, char **argv) {
