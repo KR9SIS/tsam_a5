@@ -1,5 +1,5 @@
-#include "helpers.h"
-#include "server.hpp"
+#include "../include/helpers.h"
+#include "../include/server.hpp"
 #include <arpa/inet.h>
 #include <cstdint>
 #include <inttypes.h>
