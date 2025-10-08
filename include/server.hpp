@@ -159,6 +159,10 @@ class Server {
     Client get_server_client(int64_t client_fd) { return clients[client_fd]; }
 
     ~Server() { cleanup(); }
+
+    uint32_t GetEventStatus(int event_index) {
+        return poll_events[event_index].events;
+    }
 };
 
 #endif

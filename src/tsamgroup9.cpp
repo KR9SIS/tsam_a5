@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <vector>
+#include <cstring>
 
 constexpr int8_t SOH = 0x01;
 constexpr int8_t STX = 0x02;
@@ -73,10 +74,14 @@ int16_t req_status() { return 0; }
 
 int16_t resp_status() { return 0; }
 
+// TODO: Change this func, so it handles read stuff
 void handle_client(int64_t client_fd) {
     // Read from client and add switch case to determine which server command
     // function to execute
     std::cout << "Client: " << client_fd << " called\n";
+
+    char buffer[2048];
+    memset(buffer, 0, sizeof(buffer));
 }
 
 int main(int argc, char **argv) {
@@ -99,7 +104,16 @@ int main(int argc, char **argv) {
                 serv.register_client();
                 serv.dispatch(send_helo, serv.get_event_socket(i));
             } else {
-                serv.dispatch(handle_client, serv.get_event_socket(i));
+        
+                // If EPOLLIN is set, it's ready to read
+                if (serv.GetEventStatus(i) & EPOLLIN != 0) {
+                    serv.Dispatch(handle_client, serv.GetEventSocket(i));
+                } 
+                
+                // If EPOLLOUT is set, it's ready to write
+                if (serv.GetEventStatus(i) & EPOLLOUT != 0) {
+                    continue; // Handle writing the sockets (send to ppl) - Change later
+                }
             }
         }
     }
