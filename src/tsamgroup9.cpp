@@ -12,10 +12,13 @@
 #include <unistd.h>
 #include <vector>
 #include <cstring>
+#include <map>
 
 constexpr int8_t SOH = 0x01;
 constexpr int8_t STX = 0x02;
 constexpr int8_t ETX = 0x03;
+
+std::map<int64_t, std::vector<char>> client_messages; 
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
@@ -75,31 +78,63 @@ int16_t req_status() { return 0; }
 
 int16_t resp_status() { return 0; }
 
+void message_handler(int16_t id, char *message) {
+    // Check which command and call correct function
+
+    // Send back to handle_client what it got from the function
+}
+
+std::vector<std::string> extract_frames(std::string message) {
+    // Extract message frames from buffer
+
+    std::vector<std::string> commands;
+    size_t start = 0;
+
+    while (start < message.size()) {
+        size_t soh_pos = message.find(SOH, start);
+        size_t etx_pos = message.find(ETX, soh_pos);
+
+        if (soh_pos != std::string::npos && etx_pos != std::string::npos) {
+            std::string frame = message.substr(soh_pos + 1, etx_pos - soh_pos - 1);
+            commands.push_back(frame);
+            start = etx_pos + 1;
+        } else {
+            break;
+        }
+    }
+    return commands;
+}
+
 // TODO: Change this func, so it handles read stuff
 void handle_client(int64_t client_fd) {
-    // Read from client and add switch case to determine which server command
-    // function to execute - You cannot use switch with strings
+    // Read from client and call message_handler
+    // Add framing to message and send
     std::cout << "Client: " << client_fd << " called\n";
 
     char buffer[5000] = {0};
 
-    uint16_t received_bytes = read(client_fd, buffer, sizeof(buffer) - 1);
-
-    char command[received_bytes];
-
-    for (int i = 0; i < received_bytes; ++i) {
-        if (buffer[i] == ',') {
+    while (true) {
+        int bytesRead = read(client_fd, buffer, sizeof(buffer));
+        if (bytesRead <= 0) {
             break;
-        } else {
-            command[i] = buffer[i];
         }
+
+    // TODO: Unframe
+    std::string message = buffer;
+
+    std::vector<std::string> messages = extract_frames(message);
+
+    // TODO: Call message_handler
+
+
+    // TODO: Frame message
+
+    // TODO: Send framed message
+
     }
 
-    if (command == "HELO") {
-        recv_helo();
-    }
+    close(client_fd); // Might have to remove
 
-    // TODO: Finish this, this code is shit!!
 }
 
 int main(int argc, char **argv) {
