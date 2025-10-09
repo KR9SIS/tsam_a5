@@ -6,7 +6,7 @@
 #include <ctime>
 #include <mutex>
 
-// TODO: FIX THIS, IT IS FROM CHAT AND I DON'T THINK I LIKE IT
+// WARN: FIX THIS, IT IS FROM CHAT AND I DON'T THINK I LIKE IT
 
 class Logger {
 public:

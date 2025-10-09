@@ -81,8 +81,7 @@ void handle_client(int64_t client_fd) {
     // function to execute - You cannot use switch with strings
     std::cout << "Client: " << client_fd << " called\n";
 
-    char buffer[5000];
-    memset(buffer, 0, sizeof(buffer));
+    char buffer[5000] = {0};
 
     uint16_t received_bytes = read(client_fd, buffer, sizeof(buffer) - 1);
 
