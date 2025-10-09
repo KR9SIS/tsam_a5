@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
         
                 // If EPOLLIN is set, it's ready to read
                 if (serv.GetEventStatus(i) & EPOLLIN != 0) {
-                    serv.Dispatch(handle_client, serv.GetEventSocket(i));
+                    serv.dispatch(handle_client, serv.get_event_socket(i));
                 } 
                 
                 // If EPOLLOUT is set, it's ready to write
