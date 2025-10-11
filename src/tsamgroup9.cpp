@@ -22,7 +22,7 @@ constexpr int8_t ETX = 0x03;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
-int16_t send_stream(std::string stream_str, int64_t client_fd) {
+int16_t send_stream(std::string stream_str, Client client) {
     constexpr int16_t MAX_STREAM_LEN = 5000;
 
     uint8_t reserved =
@@ -49,11 +49,11 @@ int16_t send_stream(std::string stream_str, int64_t client_fd) {
     // Send stream
     int16_t total_sent = 0, sent = 0;
     while (total_sent < stream.size()) {
-        sent = send(client_fd, stream.data() + total_sent,
+        sent = send(client.fd, stream.data() + total_sent,
                     stream.size() - total_sent, 0);
         if (sent < 0) {
             write_error("Failed to send stream to client " +
-                        std::to_string(client_fd));
+                        std::to_string(client.fd));
             return -1;
         }
         total_sent += sent;
@@ -62,9 +62,7 @@ int16_t send_stream(std::string stream_str, int64_t client_fd) {
     return 0;
 }
 
-int16_t send_helo(int64_t client_fd) {
-    return send_stream("HELO,A5_9", client_fd);
-}
+int16_t send_helo(Client client) { return send_stream("HELO,A5_9", client); }
 
 int16_t recv_helo() { return 0; }
 
@@ -122,15 +120,15 @@ std::vector<std::string> extract_payload(std::vector<std::string> messages) {
 }
 
 // TODO: Change this func, so it handles read stuff
-void handle_client(int64_t client_fd) {
+void handle_client(Client client) {
     // Read from client and call message_handler
     // Add framing to message and send
-    std::cout << "Client: " << client_fd << " called\n";
+    std::cout << "Client: " << client.fd << " called\n";
 
     char buffer[5000] = {0};
 
     while (true) {
-        int bytesRead = read(client_fd, buffer, sizeof(buffer));
+        int bytesRead = read(client.fd, buffer, sizeof(buffer));
         if (bytesRead <= 0) {
             break;
         }
@@ -154,7 +152,7 @@ void handle_client(int64_t client_fd) {
         // TODO: Send framed message
     }
 
-    close(client_fd); // Might have to remove
+    close(client.fd); // Might have to remove
 }
 
 int main(int argc, char **argv) {
@@ -175,12 +173,14 @@ int main(int argc, char **argv) {
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.check_for_new_client(i)) {
                 serv.register_client();
-                serv.dispatch(send_helo, serv.get_event_socket(i));
+                serv.dispatch(send_helo, *serv.get_server_client(
+                                             serv.get_event_socket(i)));
             } else {
 
                 // If EPOLLIN is set, it's ready to read
                 if ((serv.get_event_status(i) & EPOLLIN) != 0) {
-                    serv.dispatch(handle_client, serv.get_event_socket(i));
+                    serv.dispatch(handle_client, *serv.get_server_client(
+                                                     serv.get_event_socket(i)));
                 }
 
                 // If EPOLLOUT is set, it's ready to write
