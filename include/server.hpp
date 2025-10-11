@@ -1,5 +1,6 @@
 #ifndef SERVER_CLASS
 #define SERVER_CLASS
+#include "./serv_client.hpp"
 #include "helpers.h"
 #include <cstdint>
 #include <cstdlib>
@@ -16,11 +17,6 @@ constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
 class Server {
-    struct Client {
-        std::string name;
-        struct sockaddr_in addr;
-        int64_t fd;
-    };
     std::map<int64_t, Client> clients;
 
     int64_t server_fd, epoll_fd;
