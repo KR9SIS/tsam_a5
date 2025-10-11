@@ -26,7 +26,7 @@ int16_t send_stream(std::string stream_str, Client client) {
     constexpr int16_t MAX_STREAM_LEN = 5000;
 
     uint8_t reserved =
-        sizeof(SOH) + sizeof(stream_str.length()) + sizeof(STX) + sizeof(ETX);
+        sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
     if (stream_str.length() > MAX_STREAM_LEN - reserved) {
         stream_str.resize(MAX_STREAM_LEN - reserved);
     }
@@ -34,12 +34,17 @@ int16_t send_stream(std::string stream_str, Client client) {
     // Create data
     std::vector<char> stream;
     stream.push_back(SOH);
-    stream.push_back(stream_str.length());
+    stream.push_back(-1); // First 8 bits of length
+    stream.push_back(-1); // Last 8 bits of length
     stream.push_back(STX);
     for (char c : stream_str) {
         stream.push_back(c);
     }
     stream.push_back(ETX);
+
+    uint16_t length = stream.size();
+    stream[1] = static_cast<char>(length);
+    stream[2] = static_cast<char>(length >> 8);
 
     // Convert data to network byte order
     for (uint16_t i = 0; i < stream.size(); i++) {
