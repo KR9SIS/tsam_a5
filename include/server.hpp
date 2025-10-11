@@ -93,7 +93,7 @@ class Server {
         return poll_events[event_index].data.fd == server_fd;
     }
 
-    int WaitForEvents() {
+    int wait_for_events() {
         int num_events;
         if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
                                      EPOLL_BLOCK)) < 1) {
@@ -106,7 +106,7 @@ class Server {
     }
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
-    void RegisterClient() {
+    void register_client() {
         // Accept new client connection
         struct sockaddr_in client_addr;
         socklen_t client_add_len = sizeof(client_addr);
@@ -130,13 +130,13 @@ class Server {
 
     /*Grabs The Socket FD For The Socket That Triggered Event At Index
      * event_index*/
-    int64_t GetEventSocket(int event_index) {
+    int64_t get_event_socket(int event_index) {
         return poll_events[event_index].data.fd;
     }
 
     /*Dispatches a new thread running handler with the supplied arguments*/
     template <typename Func, typename... Args>
-    void Dispatch(Func &&handler, Args &&...arguments) {
+    void dispatch(Func &&handler, Args &&...arguments) {
         std::thread client_thread(std::forward<Func>(handler),
                                   std::forward<Args>(arguments)...);
         client_thread.detach();
