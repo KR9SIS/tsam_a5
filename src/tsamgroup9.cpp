@@ -57,7 +57,9 @@ int16_t send_stream(std::string stream_str, int64_t client_fd) {
     return 0;
 }
 
-int16_t send_helo() { return 0; }
+int16_t send_helo(int64_t client_fd) {
+    return send_stream("HELO,A5_9", client_fd);
+}
 
 int16_t recv_helo() { return 0; }
 
@@ -95,7 +97,7 @@ int main(int argc, char **argv) {
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.CheckForNewClient(i)) {
                 serv.RegisterClient();
-                serv.Dispatch(handle_client, serv.GetEventSocket(i));
+                serv.Dispatch(send_helo, serv.GetEventSocket(i));
             } else {
                 serv.Dispatch(handle_client, serv.GetEventSocket(i));
             }
