@@ -1,5 +1,5 @@
-#include "../include/helpers.h"
-#include "../include/server.hpp"
+#include "helpers.h"
+#include "server.hpp"
 #include <arpa/inet.h>
 #include <cstdint>
 #include <cstring>
@@ -22,34 +22,29 @@ constexpr int8_t ETX = 0x03;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
-int16_t send_stream(std::string stream_str, Client client) {
+int16_t send_stream(const std::string& stream_str, Client& client) {
     constexpr int16_t MAX_STREAM_LEN = 5000;
 
-    uint8_t reserved =
-        sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
-    if (stream_str.length() > MAX_STREAM_LEN - reserved) {
-        stream_str.resize(MAX_STREAM_LEN - reserved);
+    uint8_t frame_size = sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
+
+    if(stream_str.length() > MAX_STREAM_LEN - frame_size){
+        write_error("Tried To Send A Message Exceeding Max Length");
+        return -1;
     }
+
+    uint16_t total_packet_size = stream_str.length() + frame_size;
+    total_packet_size = htons(total_packet_size);
 
     // Create data
     std::vector<char> stream;
     stream.push_back(SOH);
-    stream.push_back(-1); // First 8 bits of length
-    stream.push_back(-1); // Last 8 bits of length
+    stream.push_back(total_packet_size >> 0x08);
+    stream.push_back(total_packet_size & 0x08);
     stream.push_back(STX);
-    for (char c : stream_str) {
+    for (const char& c : stream_str) {
         stream.push_back(c);
     }
     stream.push_back(ETX);
-
-    uint16_t length = stream.size();
-    stream[1] = static_cast<char>(length);
-    stream[2] = static_cast<char>(length >> 8);
-
-    // Convert data to network byte order
-    for (uint16_t i = 0; i < stream.size(); i++) {
-        stream[i] = htons(stream[i]);
-    }
 
     while (!client.commands.empty()) {
         // Resend failed streams
@@ -66,7 +61,7 @@ int16_t send_stream(std::string stream_str, Client client) {
 
             Client::Msg new_msg;
             new_msg.total_sent = 0;
-            new_msg.length = length;
+            new_msg.length = total_packet_size;
             new_msg.stream_data = stream.data();
             client.commands.push(new_msg);
 
@@ -75,9 +70,8 @@ int16_t send_stream(std::string stream_str, Client client) {
         client.commands.pop();
     }
 
-    // Send stream
     int16_t sent;
-    if ((sent = send(client.fd, stream.data(), length, 0)) < length) {
+    if ((sent = send(client.fd, stream.data(), total_packet_size, 0)) < total_packet_size) {
         if (sent < 0) {
             write_error("Failed to send stream to client " +
                         std::to_string(client.fd));
@@ -85,7 +79,7 @@ int16_t send_stream(std::string stream_str, Client client) {
         }
         Client::Msg new_msg;
         new_msg.total_sent = sent;
-        new_msg.length = length;
+        new_msg.length = total_packet_size;
         new_msg.stream_data = stream.data();
         client.commands.push(new_msg);
 
@@ -95,11 +89,22 @@ int16_t send_stream(std::string stream_str, Client client) {
     return 0;
 }
 
-int16_t send_helo(Client client) { return send_stream("HELO,A5_9", client); }
+int16_t send_helo(Client& client) { return send_stream("HELO,A5_9", client); }
 
 int16_t recv_helo() { return 0; }
 
-int16_t send_keepalive(int16_t msg_num) { return 0; }
+int16_t send_keepalive(int16_t msg_num) {
+}
+
+int16_t recieve_keepalive(Client& client, uint16_t num_messages){
+    client.pending_messages = num_messages;
+
+    if(num_messages > 0){
+        client.status = ClientState::ACTIVE;
+    }
+
+    return 0;
+}
 
 int16_t get_msg(int16_t group_id) { return 0; }
 
@@ -191,7 +196,7 @@ void handle_client(Client client) {
 int main(int argc, char **argv) {
     if (argc != 2) {
         std::cerr << "Port argument must be specified\nExample: "
-                     "./tsamgroup9 4009\n";
+            "./tsamgroup9 4009\n";
         return -1;
     }
     int16_t port = atoi(argv[1]);
@@ -203,23 +208,25 @@ int main(int argc, char **argv) {
     int16_t num_events;
     while (!finished) {
         int16_t num_events = serv.wait_for_events();
+
+        // NOTE: Had To Add std::ref() here because 
+        //       otherwise the thread does not get the real reference but a copy of it
+
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.check_for_new_client(i)) {
                 serv.register_client();
-                serv.dispatch(send_helo, *serv.get_server_client(
-                                             serv.get_event_socket(i)));
+                serv.dispatch(send_helo, std::ref(serv.get_server_client(serv.get_event_socket(i))));
             } else {
 
                 // If EPOLLIN is set, it's ready to read
                 if ((serv.get_event_status(i) & EPOLLIN) != 0) {
-                    serv.dispatch(handle_client, *serv.get_server_client(
-                                                     serv.get_event_socket(i)));
+                    serv.dispatch(handle_client, std::ref(serv.get_server_client(serv.get_event_socket(i))));
                 }
 
                 // If EPOLLOUT is set, it's ready to write
                 if ((serv.get_event_status(i) & EPOLLOUT) != 0) {
                     continue; // Handle writing the sockets (send to ppl) -
-                              // Change later
+                    // Change later
                 }
             }
         }

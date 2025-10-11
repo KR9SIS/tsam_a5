@@ -169,10 +169,10 @@ class Server {
         client_thread.detach();
     }
 
-    Client *get_server_client(int64_t client_fd) { return &clients[client_fd]; }
+    Client& get_server_client(int64_t client_fd) { return clients[client_fd]; }
 
-    std::map<int64_t, Client> *get_server_clients(int64_t client_fd) {
-        return &clients;
+    std::map<int64_t, Client>& get_server_clients(int64_t client_fd) {
+        return clients;
     }
 
     ~Server() { cleanup(); }
