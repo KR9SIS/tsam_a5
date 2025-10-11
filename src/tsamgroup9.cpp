@@ -18,7 +18,7 @@ constexpr int8_t SOH = 0x01;
 constexpr int8_t STX = 0x02;
 constexpr int8_t ETX = 0x03;
 
-// std::map<int64_t, std::vector<char>> client_messages; 
+// std::map<int64_t, std::vector<char>> client_messages;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
@@ -142,10 +142,11 @@ std::vector<std::string> extract_payload(std::vector<std::string> messages) {
 
     for (int i = 0; i < messages.size(); i++) {
         std::string message = messages[i];
-        size_t stx_pos = message.find(STX, 0); // Start of command
+        size_t stx_pos = message.find(STX, 0);       // Start of command
         size_t end_pos = message.find(STX, stx_pos); // Start of next command
-        
-        std::string command = message.substr(stx_pos - 1, end_pos - stx_pos - 2);
+
+        std::string command =
+            message.substr(stx_pos - 1, end_pos - stx_pos - 2);
         commands.push_back(command);
     }
 
@@ -169,16 +170,15 @@ void handle_client(Client client) {
         // TODO: Unframe
         std::string message = buffer;
 
-    std::vector<std::string> messages = extract_frames(message);
-    std::vector<std::string> commands = extract_payload(messages);
+        std::vector<std::string> messages = extract_frames(message);
+        std::vector<std::string> commands = extract_payload(messages);
 
-    // TODO: Call message_handler
-    // NEED TO FIX!!
-    for (int i = 0; i < commands.size(); i++) {
-        std::string command = commands[i];
-        message_handler(command);
-    }
-
+        // TODO: Call message_handler
+        // NEED TO FIX!!
+        for (int i = 0; i < commands.size(); i++) {
+            std::string command = commands[i];
+            message_handler(command);
+        }
 
         // TODO: Frame message
 
@@ -190,8 +190,8 @@ void handle_client(Client client) {
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        std::cerr
-            << "Port argument must be specified\nExample: ./tsamgroup9 4009\n";
+        std::cerr << "Port argument must be specified\nExample: "
+                     "./tsamgroup9 4009\n";
         return -1;
     }
     int16_t port = atoi(argv[1]);
