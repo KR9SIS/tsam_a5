@@ -18,7 +18,7 @@ constexpr int8_t SOH = 0x01;
 constexpr int8_t STX = 0x02;
 constexpr int8_t ETX = 0x03;
 
-std::map<int64_t, std::vector<char>> client_messages;
+// std::map<int64_t, std::vector<char>> client_messages; 
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
@@ -78,7 +78,7 @@ int16_t req_status() { return 0; }
 
 int16_t resp_status() { return 0; }
 
-void message_handler(int16_t id, char *message) {
+void message_handler(std::string command) {
     // Check which command and call correct function
 
     // Send back to handle_client what it got from the function
@@ -106,6 +106,21 @@ std::vector<std::string> extract_frames(std::string message) {
     return commands;
 }
 
+std::vector<std::string> extract_payload(std::vector<std::string> messages) {
+    std::vector<std::string> commands;
+
+    for (int i = 0; i < messages.size(); i++) {
+        std::string message = messages[i];
+        size_t stx_pos = message.find(STX, 0); // Start of command
+        size_t end_pos = message.find(STX, stx_pos); // Start of next command
+        
+        std::string command = message.substr(stx_pos - 1, end_pos - stx_pos - 2);
+        commands.push_back(command);
+    }
+
+    return commands;
+}
+
 // TODO: Change this func, so it handles read stuff
 void handle_client(int64_t client_fd) {
     // Read from client and call message_handler
@@ -123,9 +138,16 @@ void handle_client(int64_t client_fd) {
         // TODO: Unframe
         std::string message = buffer;
 
-        std::vector<std::string> messages = extract_frames(message);
+    std::vector<std::string> messages = extract_frames(message);
+    std::vector<std::string> commands = extract_payload(messages);
 
-        // TODO: Call message_handler
+    // TODO: Call message_handler
+    // NEED TO FIX!!
+    for (int i = 0; i < commands.size(); i++) {
+        std::string command = commands[i];
+        message_handler(command);
+    }
+
 
         // TODO: Frame message
 
