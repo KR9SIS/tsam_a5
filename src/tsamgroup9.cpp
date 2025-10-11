@@ -93,13 +93,13 @@ int main(int argc, char **argv) {
     bool finished = false;
     int16_t num_events;
     while (!finished) {
-        int num_events = serv.WaitForEvents();
+        int num_events = serv.wait_for_events();
         for (int16_t i = 0; i < num_events; ++i) {
-            if (serv.CheckForNewClient(i)) {
-                serv.RegisterClient();
-                serv.Dispatch(send_helo, serv.GetEventSocket(i));
+            if (serv.check_for_new_client(i)) {
+                serv.register_client();
+                serv.dispatch(send_helo, serv.get_event_socket(i));
             } else {
-                serv.Dispatch(handle_client, serv.GetEventSocket(i));
+                serv.dispatch(handle_client, serv.get_event_socket(i));
             }
         }
     }
