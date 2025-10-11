@@ -1,22 +1,21 @@
 #ifndef SERVER_CLASS
 #define SERVER_CLASS
-#include <thread>
-#include <utility>
 #include "helpers.h"
 #include <cstdint>
 #include <cstdlib>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <thread>
 #include <unistd.h>
+#include <utility>
 
 constexpr int8_t MAX_CLIENTS = 8;
 constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
-class Server{
+class Server {
     int64_t server_fd, epoll_fd;
     epoll_event event, poll_events[MAX_EVENTS];
-
 
     int64_t open_socket(int16_t port) {
         sockaddr_in sk_addr = {0}; // address settings for bind()
@@ -94,7 +93,7 @@ class Server{
         return poll_events[event_index].data.fd == server_fd;
     }
 
-    int WaitForEvents(){
+    int WaitForEvents() {
         int num_events;
         if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
                                      EPOLL_BLOCK)) < 1) {
