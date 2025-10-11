@@ -89,7 +89,7 @@ class Server {
         }
     }
 
-    bool CheckForNewClient(int event_index) {
+    bool check_for_new_client(int event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
 
