@@ -4,13 +4,13 @@
 #include <string>
 
 class Client {
-    struct TotalSent {
-        std::string commmand;
-        int16_t total_sent;
-    };
-
   public:
-    std::queue<TotalSent> commands;
+    struct Msg {
+        int16_t total_sent;
+        int16_t length;
+        char *stream_data;
+    };
+    std::queue<Msg> commands;
 
     std::string name;
     struct sockaddr_in addr = {0};

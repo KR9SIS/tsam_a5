@@ -51,17 +51,45 @@ int16_t send_stream(std::string stream_str, Client client) {
         stream[i] = htons(stream[i]);
     }
 
+    while (!client.commands.empty()) {
+        // Resend failed streams
+        Client::Msg msg = client.commands.front();
+        int16_t sent = send(client.fd, msg.stream_data + msg.total_sent,
+                            msg.length - msg.total_sent, 0);
+        if (sent + msg.total_sent < msg.length) {
+            if (sent < 0) {
+                write_error("Failed to send stream to client " +
+                            std::to_string(client.fd));
+            } else {
+                msg.total_sent += sent;
+            }
+
+            Client::Msg new_msg;
+            new_msg.total_sent = 0;
+            new_msg.length = length;
+            new_msg.stream_data = stream.data();
+            client.commands.push(new_msg);
+
+            return -1;
+        }
+        client.commands.pop();
+    }
+
     // Send stream
-    int16_t total_sent = 0, sent = 0;
-    while (total_sent < stream.size()) {
-        sent = send(client.fd, stream.data() + total_sent,
-                    stream.size() - total_sent, 0);
+    int16_t sent;
+    if ((sent = send(client.fd, stream.data(), length, 0)) < length) {
         if (sent < 0) {
             write_error("Failed to send stream to client " +
                         std::to_string(client.fd));
-            return -1;
+            sent = 0;
         }
-        total_sent += sent;
+        Client::Msg new_msg;
+        new_msg.total_sent = sent;
+        new_msg.length = length;
+        new_msg.stream_data = stream.data();
+        client.commands.push(new_msg);
+
+        return -1;
     }
 
     return 0;
