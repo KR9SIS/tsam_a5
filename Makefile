@@ -15,10 +15,13 @@ SERVER = $(addprefix $(BINDIR), tsamgroup9)
 
 PHONY.: client server all
 
+.PHONY: all
 all: $(CLIENT) $(SERVER)
 
+.PHONY: client
 client: $(CLIENT)
 
+.PHONY: server
 server: $(SERVER)
 
 $(CLIENT): $(CLIENTSRC) | $(BINDIR)
