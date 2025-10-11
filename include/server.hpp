@@ -3,7 +3,9 @@
 #include "helpers.h"
 #include <cstdint>
 #include <cstdlib>
+#include <map>
 #include <netinet/in.h>
+#include <string>
 #include <sys/epoll.h>
 #include <thread>
 #include <unistd.h>
@@ -14,6 +16,13 @@ constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
 class Server {
+    struct Client {
+        std::string name;
+        struct sockaddr_in addr;
+        int64_t fd;
+    };
+    std::map<int64_t, Client> clients;
+
     int64_t server_fd, epoll_fd;
     epoll_event event, poll_events[MAX_EVENTS];
 
@@ -108,24 +117,29 @@ class Server {
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
         // Accept new client connection
-        struct sockaddr_in client_addr;
-        socklen_t client_add_len = sizeof(client_addr);
-        int64_t client_fd;
+        Client client = Client();
+        socklen_t client_add_len = sizeof(client.addr);
 
-        if ((client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
+        if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr,
                                 &client_add_len)) < 0) {
             write_error("Failed to accept client connection");
             return;
         }
 
+        clients[client.fd] = client;
         // Add client socket to epoll
         event.events = EPOLLIN;
-        event.data.fd = client_fd;
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
+        event.data.fd = client.fd;
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
             write_error("Failed to add client socket to epoll instance");
-            close(client_fd);
+            close(client.fd);
             return;
         }
+    }
+
+    void delete_client(Client client) {
+        clients.erase(client.fd);
+        close(client.fd);
     }
 
     /*Grabs The Socket FD For The Socket That Triggered Event At Index
@@ -141,6 +155,8 @@ class Server {
                                   std::forward<Args>(arguments)...);
         client_thread.detach();
     }
+
+    Client get_server_client(int64_t client_fd) { return clients[client_fd]; }
 
     ~Server() { cleanup(); }
 };
