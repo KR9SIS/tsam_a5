@@ -15,6 +15,7 @@ class Client {
     std::string name;
     struct sockaddr_in addr = {0};
     int64_t fd;
+    int8_t client_num;
 
     Client() : name(""), fd(-1) {};
 };

@@ -112,6 +112,15 @@ class Server {
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
+        if (clients.size() > MAX_CLIENTS) {
+            for (std::map<int64_t, Client>::iterator it = clients.begin();
+                 it != clients.end(); ++it) {
+                if (it->second.client_num == 1) {
+                    delete_client(it->second);
+                    break;
+                }
+            }
+        }
         // Accept new client connection
         Client client = Client();
         socklen_t client_add_len = sizeof(client.addr);
@@ -122,6 +131,7 @@ class Server {
             return;
         }
 
+        client.client_num = clients.size();
         clients[client.fd] = client;
         // Add client socket to epoll
         event.events = EPOLLIN;
@@ -136,6 +146,13 @@ class Server {
     void delete_client(Client client) {
         clients.erase(client.fd);
         close(client.fd);
+
+        for (std::map<int64_t, Client>::iterator it = clients.begin();
+             it != clients.end(); ++it) {
+            if (it->second.client_num >= client.client_num) {
+                it->second.client_num--;
+            }
+        }
     }
 
     /*Grabs The Socket FD For The Socket That Triggered Event At Index
