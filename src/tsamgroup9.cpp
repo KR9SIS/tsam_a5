@@ -11,9 +11,9 @@
 #include <unistd.h>
 #include <vector>
 
-#define SOH 0x01
-#define STX 0x02
-#define ETX 0x03
+constexpr int8_t SOH = 0x01;
+constexpr int8_t STX = 0x02;
+constexpr int8_t ETX = 0x03;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 

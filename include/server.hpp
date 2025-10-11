@@ -9,9 +9,9 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#define MAX_CLIENTS 8
-#define MAX_EVENTS 10
-#define EPOLL_BLOCK -1
+constexpr int8_t MAX_CLIENTS = 8;
+constexpr int8_t MAX_EVENTS = 10;
+constexpr int8_t EPOLL_BLOCK = -1;
 
 class Server{
     int64_t server_fd, epoll_fd;
