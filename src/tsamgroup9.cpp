@@ -20,8 +20,10 @@ constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 int16_t send_stream(std::string stream_str, int64_t client_fd) {
     constexpr int16_t MAX_STREAM_LEN = 5000;
 
-    if (stream_str.length() > MAX_STREAM_LEN - 3) {
-        stream_str.resize(MAX_STREAM_LEN - 3);
+    uint8_t reserved =
+        sizeof(SOH) + sizeof(stream_str.length()) + sizeof(STX) + sizeof(ETX);
+    if (stream_str.length() > MAX_STREAM_LEN - reserved) {
+        stream_str.resize(MAX_STREAM_LEN - reserved);
     }
 
     // Create data
