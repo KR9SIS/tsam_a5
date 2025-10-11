@@ -2,23 +2,23 @@
 #include "../include/server.hpp"
 #include <arpa/inet.h>
 #include <cstdint>
+#include <cstring>
 #include <inttypes.h>
 #include <iostream>
+#include <map>
 #include <netinet/in.h>
-#include <string>
 #include <sstream>
+#include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <vector>
-#include <cstring>
-#include <map>
 
 constexpr int8_t SOH = 0x01;
 constexpr int8_t STX = 0x02;
 constexpr int8_t ETX = 0x03;
 
-std::map<int64_t, std::vector<char>> client_messages; 
+std::map<int64_t, std::vector<char>> client_messages;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
@@ -42,7 +42,7 @@ int16_t send_stream(std::string stream_str, int64_t client_fd) {
     stream.push_back(ETX);
 
     // Convert data to network byte order
-    for (int i = 0; i < stream.size(); i++) {
+    for (uint16_t i = 0; i < stream.size(); i++) {
         stream[i] = htons(stream[i]);
     }
 
@@ -95,7 +95,8 @@ std::vector<std::string> extract_frames(std::string message) {
         size_t etx_pos = message.find(ETX, soh_pos);
 
         if (soh_pos != std::string::npos && etx_pos != std::string::npos) {
-            std::string frame = message.substr(soh_pos + 1, etx_pos - soh_pos - 1);
+            std::string frame =
+                message.substr(soh_pos + 1, etx_pos - soh_pos - 1);
             commands.push_back(frame);
             start = etx_pos + 1;
         } else {
@@ -119,22 +120,19 @@ void handle_client(int64_t client_fd) {
             break;
         }
 
-    // TODO: Unframe
-    std::string message = buffer;
+        // TODO: Unframe
+        std::string message = buffer;
 
-    std::vector<std::string> messages = extract_frames(message);
+        std::vector<std::string> messages = extract_frames(message);
 
-    // TODO: Call message_handler
+        // TODO: Call message_handler
 
+        // TODO: Frame message
 
-    // TODO: Frame message
-
-    // TODO: Send framed message
-
+        // TODO: Send framed message
     }
 
     close(client_fd); // Might have to remove
-
 }
 
 int main(int argc, char **argv) {
@@ -151,21 +149,22 @@ int main(int argc, char **argv) {
     bool finished = false;
     int16_t num_events;
     while (!finished) {
-        int num_events = serv.wait_for_events();
+        int16_t num_events = serv.wait_for_events();
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.check_for_new_client(i)) {
                 serv.register_client();
                 serv.dispatch(send_helo, serv.get_event_socket(i));
             } else {
-        
+
                 // If EPOLLIN is set, it's ready to read
-                if (serv.GetEventStatus(i) & EPOLLIN != 0) {
+                if ((serv.get_event_status(i) & EPOLLIN) != 0) {
                     serv.dispatch(handle_client, serv.get_event_socket(i));
-                } 
-                
+                }
+
                 // If EPOLLOUT is set, it's ready to write
-                if (serv.GetEventStatus(i) & EPOLLOUT != 0) {
-                    continue; // Handle writing the sockets (send to ppl) - Change later
+                if ((serv.get_event_status(i) & EPOLLOUT) != 0) {
+                    continue; // Handle writing the sockets (send to ppl) -
+                              // Change later
                 }
             }
         }

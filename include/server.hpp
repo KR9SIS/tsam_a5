@@ -98,12 +98,12 @@ class Server {
         }
     }
 
-    bool check_for_new_client(int event_index) {
+    bool check_for_new_client(int8_t event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
 
-    int wait_for_events() {
-        int num_events;
+    int8_t wait_for_events() {
+        int8_t num_events;
         if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
                                      EPOLL_BLOCK)) < 1) {
             write_error("Failed to wait for events");
@@ -160,7 +160,7 @@ class Server {
 
     ~Server() { cleanup(); }
 
-    uint32_t GetEventStatus(int event_index) {
+    uint32_t get_event_status(int event_index) {
         return poll_events[event_index].events;
     }
 };
