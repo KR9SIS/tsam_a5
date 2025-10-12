@@ -5,9 +5,7 @@
 #include <cstring>
 #include <inttypes.h>
 #include <iostream>
-#include <map>
 #include <netinet/in.h>
-#include <sstream>
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -93,7 +91,18 @@ int16_t send_helo(Client& client) { return send_stream("HELO,A5_9", client); }
 
 int16_t recv_helo() { return 0; }
 
-int16_t send_keepalive(int16_t msg_num) {
+int16_t send_keepalive(std::map<int64_t, Client>& clients) {
+    int16_t num_failures = 0;
+    for(auto it = clients.begin(); it != clients.end(); it++){
+        if(send_stream(std::string("KEEPALIVE,")
+                       .append(std::to_string(it->second.pending_messages)),
+                       it->second) == -1){
+            write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
+            num_failures += 1;
+        }
+    }
+
+    return num_failures;
 }
 
 int16_t recieve_keepalive(Client& client, uint16_t num_messages){
