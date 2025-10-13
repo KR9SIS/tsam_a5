@@ -1,8 +1,7 @@
 // Client from assignment 1
-
+#include <client_logs.hpp>
 #include <stdio.h>
 #include <iostream>
-
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -18,19 +17,13 @@ const std::string GROUP_ID = "A5_9";
 
 #define MAX_BUFFER_SIZE 5000
 
-int log_received() {
-    return 0;
-}
-
-int log_sent() {
-    return 0;
-}
-
 void get_msg(int64_t sock_fd) {
     std::string command = "GETMSG," + GROUP_ID; // Might have to change so it does not include group id
 
     // Send the command to the server (server command: GETMSG,<GROUP_ID>)
     send_command_to_server(sock_fd, command);
+
+    log_message("SENT", command);
 
     // Get the response back from the server
     std::string response = receive_respons_from_server(sock_fd);
@@ -40,7 +33,7 @@ void get_msg(int64_t sock_fd) {
         std::cout << "Server response:" << std::endl;
         std::cout << response << std::endl;
 
-        // log_received(response);
+        log_message("RESPONSE", response);
     }
 }
 
@@ -60,6 +53,8 @@ void send_msg(int64_t sock_fd) {
     std::string command = "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
     send_command_to_server(sock_fd, command);
 
+    log_message("SENT", command);
+
     // Get the response back from the server
     std::string response = receive_respons_from_server(sock_fd);
 
@@ -68,7 +63,7 @@ void send_msg(int64_t sock_fd) {
         std::cout << "Server response:" << std::endl;
         std::cout << response << std::endl;
 
-        // log_received(response);
+        log_message("RESPONSE", response);
     }
 }
 
@@ -77,6 +72,8 @@ void list_servers(int64_t sock_fd) {
     std::string command = "HELO," + GROUP_ID;
     send_command_to_server(sock_fd, command);
 
+    log_message("SENT", command);
+
     // Get the response back from the server
     std::string response = receive_respons_from_server(sock_fd);
 
@@ -85,7 +82,7 @@ void list_servers(int64_t sock_fd) {
         std::cout << "Server response:" << std::endl;
         std::cout << response << std::endl;
 
-        // log_received(response);
+        log_message("RESPONSE", response);
     }
 }
 
@@ -110,7 +107,13 @@ std::string frame_message(const std::string &message) {
 }
 
 std::string unframe_message(const std::string &message) {
-    return "not hello";
+    
+    ssize_t start_of_message_pos = message.find(STX, 0);
+
+    if (message[0] == SOH && message[message.size() - 6] == ETX) { // Make sure headers are there before removing
+        return message.substr(start_of_message_pos + 1, message.size() - 6);
+    }
+    return message; // If headers are not there just return the message back
 }
 
 void send_command_to_server(int64_t sock_fd, const std::string &command) {
@@ -126,7 +129,7 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
         exit(1);
     }
 
-    // log_sent(message);
+    log_message("SENT", command);
 }
 
 std::string receive_respons_from_server(int64_t sock_fd) {
