@@ -115,13 +115,18 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages){
     return 0;
 }
 
+int16_t get_msg(Client& client, Server& server){
+
+    return 0; 
+}
+
 int16_t get_msg(int16_t group_id) { return 0; }
 
 int16_t send_msg(int16_t to_group, int16_t from_group) { return 0; }
 
 int16_t req_status() { return 0; }
 
-int16_t resp_status() { return 0; }
+int16_t resp_status(std::map<int64_t, Client>& clients) { return 0; }
 
 void message_handler(std::string command) {
     // Check which command and call correct function
@@ -129,7 +134,7 @@ void message_handler(std::string command) {
     // Send back to handle_client what it got from the function
 }
 
-std::vector<std::string> extract_frames(const std::string &message) {
+std::vector<std::string> extract_frames(const std::string& message) {
     // Extract message frames from buffer
 
     std::vector<std::string> commands;
@@ -151,7 +156,7 @@ std::vector<std::string> extract_frames(const std::string &message) {
     return commands;
 }
 
-std::vector<std::string> extract_payload(std::vector<std::string> messages) {
+std::vector<std::string> extract_payload(const std::vector<std::string>& messages) {
     std::vector<std::string> commands;
 
     for (int i = 0; i < messages.size(); i++) {
@@ -168,7 +173,7 @@ std::vector<std::string> extract_payload(std::vector<std::string> messages) {
 }
 
 // TODO: Change this func, so it handles read stuff
-void handle_client(Client client) {
+void handle_client(Client& client, Server& serv) {
     // Read from client and call message_handler
     // Add framing to message and send
     std::cout << "Client: " << client.fd << " called\n";
@@ -182,7 +187,7 @@ void handle_client(Client client) {
         }
 
         // TODO: Unframe
-        std::string message = buffer;
+        std::string message(buffer);
 
         std::vector<std::string> messages = extract_frames(message);
         std::vector<std::string> commands = extract_payload(messages);
@@ -227,7 +232,7 @@ int main(int argc, char **argv) {
 
                 // If EPOLLIN is set, it's ready to read
                 if ((serv.get_event_status(i) & EPOLLIN) != 0) {
-                    serv.dispatch(handle_client, std::ref(serv.get_server_client(serv.get_event_socket(i))));
+                    serv.dispatch(handle_client, std::ref(serv.get_server_client(serv.get_event_socket(i))),std::ref(serv));
                 }
 
                 // If EPOLLOUT is set, it's ready to write

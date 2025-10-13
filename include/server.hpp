@@ -12,12 +12,15 @@
 #include <unistd.h>
 #include <utility>
 
+
+constexpr uint32_t MAX_MESSAGES = 10000;// NOTE: uint32_t just in case we want to change to something bigger
 constexpr int8_t MAX_CLIENTS = 8;
 constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
 class Server {
     std::map<int64_t, Client> clients;
+    std::queue<std::string> message_store;
 
     int64_t server_fd, epoll_fd;
     epoll_event event, poll_events[MAX_EVENTS];
@@ -167,6 +170,16 @@ class Server {
         std::thread client_thread(std::forward<Func>(handler),
                                   std::forward<Args>(arguments)...);
         client_thread.detach();
+    }
+
+    void StoreMessageForCnC(const std::string& message){
+        message_store.push(message);
+    }
+
+    std::string GetMessageForCnC(){
+        std::string message = message_store.front();
+        message_store.pop();
+        return message;
     }
 
     Client& get_server_client(int64_t client_fd) { return clients[client_fd]; }
