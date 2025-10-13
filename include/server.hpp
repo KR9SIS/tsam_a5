@@ -184,7 +184,7 @@ class Server {
 
     Client& get_server_client(int64_t client_fd) { return clients[client_fd]; }
 
-    std::map<int64_t, Client>& get_server_clients(int64_t client_fd) {
+    std::map<int64_t, Client>& get_server_clients() {
         return clients;
     }
 

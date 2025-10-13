@@ -2,9 +2,11 @@
 #include "server.hpp"
 #include <arpa/inet.h>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <inttypes.h>
 #include <iostream>
+#include <map>
 #include <netinet/in.h>
 #include <string>
 #include <sys/epoll.h>
@@ -89,11 +91,27 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
 
 int16_t send_helo(Client& client) { return send_stream("HELO,A5_9", client); }
 
-int16_t recv_helo() { return 0; }
+int16_t recv_helo(Client& client, Server& server, const std::string& name) { 
+    client.name = name;
+    std::map<int64_t, Client>& clients = server.get_server_clients();
+    std::string message("SERVER,");
+    for(auto it = clients.begin(); it != clients.end(); ++it){
+        std::string address;
+        if(!inet_ntop(AF_INET, &it->second.addr.sin_addr, address.data(), 15)){
+            write_error(std::string("IP Address Of Client ").append(it->second.name).append(" Could Not Be Translated To String"));
+            continue;
+        }
+
+        message.append(name).append(",");
+        message.append(address).append(",");
+        message.append(std::to_string(ntohs(it->second.addr.sin_port))).append(";");
+    }
+    return send_stream(message, client);
+}
 
 int16_t send_keepalive(std::map<int64_t, Client>& clients) {
     int16_t num_failures = 0;
-    for(auto it = clients.begin(); it != clients.end(); it++){
+    for(auto it = clients.begin(); it != clients.end(); ++it){
         if(send_stream(std::string("KEEPALIVE,")
                        .append(std::to_string(it->second.pending_messages)),
                        it->second) == -1){
@@ -116,13 +134,22 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages){
 }
 
 int16_t get_msg(Client& client, Server& server){
+    if(client.name != "A5_9"){
+        write_error("Client With Insufficient Privileges To GETMSG Made An Attempt");
+        return -1;
+    }
 
-    return 0; 
+    return send_stream(server.GetMessageForCnC(), client); 
 }
 
 int16_t get_msg(int16_t group_id) { return 0; }
 
-int16_t send_msg(int16_t to_group, int16_t from_group) { return 0; }
+int16_t send_msg(int16_t to_group, int16_t from_group, const std::string& message) {
+    if(to_group == 9){
+        
+    }
+    return 0; 
+}
 
 int16_t req_status() { return 0; }
 
