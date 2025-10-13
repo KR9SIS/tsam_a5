@@ -129,7 +129,7 @@ void message_handler(std::string command) {
     // Send back to handle_client what it got from the function
 }
 
-std::vector<std::string> extract_frames(std::string message) {
+std::vector<std::string> extract_frames(const std::string &message) {
     // Extract message frames from buffer
 
     std::vector<std::string> commands;
@@ -194,9 +194,7 @@ void handle_client(Client client) {
             message_handler(command);
         }
 
-        // TODO: Frame message
-
-        // TODO: Send framed message
+        // TODO: call sendstream?
     }
 
     close(client.fd); // Might have to remove
