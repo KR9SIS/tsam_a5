@@ -32,6 +32,8 @@ make clean
 
 ## Executing the Server and Client
 
+Go to the bin directory and then run the following commands
+
 To execute the server
 
 ```bash
