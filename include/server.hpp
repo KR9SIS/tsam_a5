@@ -114,7 +114,7 @@ class Server {
     }
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
-    void register_client() {
+    Client* register_client() {
         if (clients.size() > MAX_CLIENTS) {
             for (std::map<int64_t, Client>::iterator it = clients.begin();
                  it != clients.end(); ++it) {
@@ -131,7 +131,7 @@ class Server {
         if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr,
                                 &client_add_len)) < 0) {
             write_error("Failed to accept client connection");
-            return;
+            return nullptr;
         }
 
         client.client_num = clients.size();
@@ -142,8 +142,10 @@ class Server {
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
             write_error("Failed to add client socket to epoll instance");
             close(client.fd);
-            return;
+            return nullptr;
         }
+
+        return &clients[client.fd];
     }
 
     void delete_client(Client client) {

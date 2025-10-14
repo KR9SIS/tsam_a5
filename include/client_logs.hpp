@@ -11,8 +11,8 @@
 extern std::mutex logMutex;
 extern std::ofstream client_logfile;
 
-void log_message(const std::string &type, const std::string &message);
+extern void log_message(const std::string &type, const std::string &message);
 
-void new_file();
+extern void new_file();
 
 #endif

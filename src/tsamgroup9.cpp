@@ -7,6 +7,8 @@
 #include <inttypes.h>
 #include <iostream>
 #include <map>
+#include <ranges>
+#include <string_view>
 #include <netinet/in.h>
 #include <string>
 #include <sys/epoll.h>
@@ -53,7 +55,7 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
                             msg.length - msg.total_sent, 0);
         if (sent + msg.total_sent < msg.length) {
             if (sent < 0) {
-                write_error("Failed to send stream to client " +
+                write_error("Failed to send stream("+stream_str+") to client " +
                             std::to_string(client.fd));
             } else {
                 msg.total_sent += sent;
@@ -73,8 +75,8 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
     int16_t sent;
     if ((sent = send(client.fd, stream.data(), total_packet_size, 0)) < total_packet_size) {
         if (sent < 0) {
-            write_error("Failed to send stream to client " +
-                        std::to_string(client.fd));
+                write_error("Failed to send stream("+stream_str+") to client " +
+                            std::to_string(client.fd));
             sent = 0;
         }
         Client::Msg new_msg;
@@ -139,14 +141,14 @@ int16_t get_msg(Client& client, Server& server){
         return -1;
     }
 
-    return send_stream(server.GetMessageForCnC(), client); 
+    return send_stream(server.GetMessageForCnC(), client); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
 }
 
 int16_t get_msg(int16_t group_id) { return 0; }
 
-int16_t send_msg(int16_t to_group, int16_t from_group, const std::string& message) {
+int16_t send_msg(Server& server, int16_t to_group, int16_t from_group, const std::string& message) {
     if(to_group == 9){
-        
+        server.StoreMessageForCnC(message); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
     }
     return 0; 
 }
@@ -155,10 +157,33 @@ int16_t req_status() { return 0; }
 
 int16_t resp_status(std::map<int64_t, Client>& clients) { return 0; }
 
-void message_handler(std::string command) {
-    // Check which command and call correct function
+std::vector<std::string> extract_parameters(const std::string payload){
+    std::vector<std::string> params;
+    size_t delim_pos = payload.find(",");
+    while(delim_pos != std::string::npos){
+        size_t next_delim = payload.find(",", delim_pos);
+        if(next_delim == std::string::npos){
+            params.push_back(payload.substr(delim_pos));
+            break;
+        }
+        params.push_back(payload.substr(delim_pos, next_delim - delim_pos));
+    }
 
-    // Send back to handle_client what it got from the function
+    return params;
+}
+
+void message_handler(Client& client, Server& server, const std::string& command) {
+    if(command.find("GETMSG") != std::string::npos){
+        get_msg(client, server);
+    }
+    if(command.find("SENDMSG") != std::string::npos){
+        std::vector<std::string> parameters = extract_parameters(command);
+        if(parameters.size() < 3){
+            write_error("Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...");
+            return;
+        }
+        send_msg(server, std::stoi(parameters[0]), std::stoi(parameters[1]), parameters[2]);
+    }
 }
 
 std::vector<std::string> extract_frames(const std::string& message) {
@@ -188,7 +213,7 @@ std::vector<std::string> extract_payload(const std::vector<std::string>& message
 
     for (int i = 0; i < messages.size(); i++) {
         std::string message = messages[i];
-        size_t stx_pos = message.find(STX, 0);       // Start of command
+        size_t stx_pos = message.find(STX);       // Start of command
         size_t end_pos = message.find(STX, stx_pos); // Start of next command
 
         std::string command =
@@ -223,7 +248,7 @@ void handle_client(Client& client, Server& serv) {
         // NEED TO FIX!!
         for (int i = 0; i < commands.size(); i++) {
             std::string command = commands[i];
-            message_handler(command);
+            message_handler(client, serv, command);
         }
 
         // TODO: call sendstream?
@@ -253,8 +278,8 @@ int main(int argc, char **argv) {
 
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.check_for_new_client(i)) {
-                serv.register_client();
-                serv.dispatch(send_helo, std::ref(serv.get_server_client(serv.get_event_socket(i))));
+                Client* new_client = serv.register_client(); 
+                serv.dispatch(send_helo, std::ref(*new_client));
             } else {
 
                 // If EPOLLIN is set, it's ready to read

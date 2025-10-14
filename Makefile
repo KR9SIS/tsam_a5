@@ -5,7 +5,7 @@ BINDIR = bin/
 OBJDIR = obj/
 INCLUDE = -I ./include/
 
-CLIENTSRC = $(addprefix $(SRCDIR), client.cpp helpers.cpp)
+CLIENTSRC = $(addprefix $(SRCDIR), client.cpp helpers.cpp client_logs.cpp)
 SERVERSRC = $(addprefix $(SRCDIR), tsamgroup9.cpp helpers.cpp)
 CLIENTOBJ = $(CLIENTSRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 SERVEROBJ = $(SERVERSRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
