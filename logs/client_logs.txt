@@ -1,0 +1,28 @@
+[Tue Oct 14 23:41:04 2025] [CONNECTED] Connected to server successfully
+[Tue Oct 14 23:41:12 2025] [SENT] GETMSG,A5_9
+[Tue Oct 14 23:41:12 2025] [RESPONSE] HELO,A5_9
+[Tue Oct 14 23:41:26 2025] [SENT] GETMSG,A5_9
+[Tue Oct 14 23:41:31 2025] [TIMEOUT] Response from server timed out
+[Tue Oct 14 23:41:46 2025] [CLOSE] Connection to server has closed
+
+[Tue Oct 14 23:43:46 2025] [CONNECTED] Connected to server successfully
+[Tue Oct 14 23:43:50 2025] [SENT] GETMSG,A5_9
+[Tue Oct 14 23:43:50 2025] [RESPONSE] HELO,A5_9
+[Tue Oct 14 23:44:14 2025] [SENT] SENDMSG,A5_9,A5_9,hello
+[Tue Oct 14 23:44:19 2025] [TIMEOUT] Response from server timed out
+[Tue Oct 14 23:44:27 2025] [CLOSE] Connection to server has closed
+
+[Tue Oct 14 23:47:23 2025] [CONNECTED] Connected to server successfully
+[Tue Oct 14 23:47:27 2025] [SENT] GETMSG,A5_9
+[Tue Oct 14 23:47:27 2025] [RESPONSE] HELO,A5_9
+[Tue Oct 14 23:48:05 2025] [SENT] SENDMSG,A5_9,A5_9,Hello
+[Tue Oct 14 23:48:10 2025] [TIMEOUT] Response from server timed out
+[Tue Oct 14 23:48:15 2025] [CLOSE] Connection to server has closed
+
+[Tue Oct 14 23:49:22 2025] [CONNECTED] Connected to server successfully
+[Tue Oct 14 23:49:25 2025] [SENT] GETMSG,A5_9
+[Tue Oct 14 23:49:25 2025] [RESPONSE] HELO,A5_9
+[Tue Oct 14 23:49:41 2025] [SENT] SENDMSG,A5_9,A5_9,Hello
+[Tue Oct 14 23:49:46 2025] [TIMEOUT] Response from server timed out
+[Tue Oct 14 23:49:50 2025] [CLOSE] Connection to server has closed
+

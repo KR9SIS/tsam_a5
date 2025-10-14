@@ -1,12 +1,14 @@
-// Client from assignment 1
-#include <arpa/inet.h>
-#include <client_logs.hpp>
-#include <cstring>
+#include <../logs/client_logs.hpp>
+#include <stdio.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <cstring>
+#include <vector>
+#include <csignal>
+#include <client_logs.hpp>
 
 constexpr int8_t SOH = 0x01; // Start of header
 constexpr int8_t STX = 0x02; // End of header
@@ -16,25 +18,31 @@ const std::string GROUP_ID = "A5_9";
 
 #define MAX_BUFFER_SIZE 5000
 
-std::string frame_message(const std::string &message) {
-    uint8_t frame_size =
-        sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
-
-    uint16_t total_packet_size = message.length() + frame_size;
-    total_packet_size = htons(total_packet_size);
-
-    // Create data
-    std::string framed_message;
-    framed_message.push_back(SOH);
-    framed_message.push_back(total_packet_size >> 0x08);
-    framed_message.push_back(total_packet_size & 0x08);
-    framed_message.push_back(STX);
-    for (const char &c : message) {
-        framed_message.push_back(c);
+static void handle_signal(int) {
+    if (client_logfile.is_open()) {
+        client_logfile.flush();
+        client_logfile.close();
     }
-    framed_message.push_back(ETX);
+    std::_Exit(0); // exit safely
+}
 
-    return framed_message;
+std::string frame_message(const std::string &message) {
+    // SOH(1) + len(2) + STX(1) + payload + ETX(1)
+    constexpr uint16_t OVERHEAD = 1 + 2 + 1 + 1;
+    uint16_t total_len_host = static_cast<uint16_t>(message.size() + OVERHEAD);
+    uint16_t total_len_net  = htons(total_len_host);
+
+    std::string framed;
+    framed.reserve(total_len_host);
+
+    framed.push_back(SOH);
+    framed.push_back(static_cast<char>((total_len_net >> 8) & 0xFF)); // hi
+    framed.push_back(static_cast<char>( total_len_net & 0xFF)); // lo 
+    framed.push_back(STX);
+    framed.append(message);
+    framed.push_back(ETX);
+
+    return framed;
 }
 
 void send_command_to_server(int64_t sock_fd, const std::string &command) {
@@ -47,23 +55,25 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
 
     // Check if sending the command to server failed
     if (bytes_sent < 0) {
-        perror("Error sending the command to the server");
+        log_message("ERROR", "Error sending the command to the server");
         exit(1);
     }
 
+    std::cout << "\n";
     log_message("SENT", command);
 }
 
 std::string unframe_message(const std::string &message) {
+    
+    auto stx = message.find(static_cast<char>(STX));
+    auto etx = message.rfind(static_cast<char>(ETX));
 
-    ssize_t start_of_message_pos = message.find(STX, 0);
-
-    if (message[0] == SOH &&
-        message[message.size() - 6] ==
-            ETX) { // Make sure headers are there before removing
-        return message.substr(start_of_message_pos + 1, message.size() - 6);
+    // If the message does not need unframing
+    if (stx == std::string::npos || etx == std::string::npos || stx + 1 > etx) {
+        return message;
     }
-    return message; // If headers are not there just return the message back
+
+    return message.substr(stx + 1, etx - stx - 1);
 }
 
 std::string receive_respons_from_server(int64_t sock_fd) {
@@ -76,19 +86,18 @@ std::string receive_respons_from_server(int64_t sock_fd) {
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
-    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv,
-                   sizeof(tv)) < 0) {
-        perror("Error setting response timeout");
+    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv)) < 0) {
+        log_message("ERROR", "Error setting response timeout");
         exit(1);
     }
 
-    int bytes_received = recv(sock_fd, buffer, MAX_BUFFER_SIZE, 0);
+    ssize_t bytes_received = recv(sock_fd, buffer, MAX_BUFFER_SIZE, 0);
 
     if (bytes_received == 0) {
-        std::cout << "Connection to server has closed" << std::endl;
+        log_message("CLOSE", "Connection to server has closed\n");
         exit(0); // Since the connection has been closed
     } else if (bytes_received < 0) {
-        std::cout << "Response from server timed out" << std::endl;
+        log_message("TIMEOUT", "Response from server timed out");
         return ""; // So it goes back to the loop
     }
 
@@ -105,16 +114,11 @@ void get_msg(int64_t sock_fd) {
     // Send the command to the server (server command: GETMSG,<GROUP_ID>)
     send_command_to_server(sock_fd, command);
 
-    log_message("SENT", command);
-
     // Get the response back from the server
     std::string response = receive_respons_from_server(sock_fd);
 
     // Check if the response is empty, and output the response if not
     if (!response.empty()) {
-        std::cout << "Server response:" << std::endl;
-        std::cout << response << std::endl;
-
         log_message("RESPONSE", response);
     }
 }
@@ -137,16 +141,11 @@ void send_msg(int64_t sock_fd) {
         "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
     send_command_to_server(sock_fd, command);
 
-    log_message("SENT", command);
-
     // Get the response back from the server
     std::string response = receive_respons_from_server(sock_fd);
 
     // Check if the response is empty, and output the response if not
     if (!response.empty()) {
-        std::cout << "Server response:" << std::endl;
-        std::cout << response << std::endl;
-
         log_message("RESPONSE", response);
     }
 }
@@ -156,16 +155,11 @@ void list_servers(int64_t sock_fd) {
     std::string command = "HELO," + GROUP_ID;
     send_command_to_server(sock_fd, command);
 
-    log_message("SENT", command);
-
     // Get the response back from the server
     std::string response = receive_respons_from_server(sock_fd);
 
     // Check if the response is empty, and output the response if not
     if (!response.empty()) {
-        std::cout << "Server response:" << std::endl;
-        std::cout << response << std::endl;
-
         log_message("RESPONSE", response);
     }
 }
@@ -176,7 +170,7 @@ int64_t set_up_connection(const std::string &ip_string,
     int64_t sock_fd;
 
     if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation failed");
+        log_message("ERROR", "Socket creation failed");
         exit(0);
     }
 
@@ -190,18 +184,17 @@ int64_t set_up_connection(const std::string &ip_string,
 
     // Try to set socket address
     if (inet_pton(AF_INET, ip_string.c_str(), &server_addr.sin_addr) != 1) {
-        std::cout << "Invalid ip address" << std::endl;
+        log_message("INVALID", "Invalid ip address");
         exit(0);
     }
 
     // Connect to server
-    if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) <
-        0) {
-        perror("Connection failed");
+    if (connect(sock_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+        log_message("ERROR", "Connection failed");
         exit(0);
     }
 
-    std::cout << "Connected to server successfully" << std::endl;
+    log_message("CONNECTED", "Connected to server successfully");
     return sock_fd;
 }
 
@@ -210,8 +203,7 @@ int main(int argc, char *argv[]) {
     // arguments Arguments: ./client 130.208.246.98 4009 - execute program,
     // server ip and port nr.
     if (argc != 3) {
-        perror("Wrong amount of arguments. Should be: ./client <server_ip> "
-               "<port_nr>");
+        log_message("INVALID", "Wrong amount of arguments. Should be: ./client <server_ip> <port_nr>");
         return 1;
     }
 
@@ -224,24 +216,29 @@ int main(int argc, char *argv[]) {
     // Connect to the server
     int64_t sock_fd = set_up_connection(ip_string, port);
 
-    // After connect enter a loop to keep connection open and handle commands
-    // until user wants to exit
+    std::signal(SIGINT, handle_signal);
+    std::signal(SIGTERM, handle_signal);
+
+
+    // After connect enter a loop to keep connection open and handle commands until user wants to exit
     while (true) {
         // We available commands
-        std::cout
-            << "Available commands:\n"
-            << "(1) GETMSG (Get a message from the server for your group)\n"
-            << "(2) SENDMSG (Let server deliver a message to a group)\n"
-            << "(3) LISTSERVERS (List servers your server is connected to)\n"
-            << "Press enter if you want to exit the program\n"
-            << "Enter the number of your choice of a command ";
+        std::cout << "\nAvailable commands:\n" 
+        << "(1) GETMSG (Get a message from the server for your group)\n" 
+        << "(2) SENDMSG (Let server deliver a message to a group)\n" 
+        << "(3) LISTSERVERS (List servers your server is connected to)\n" 
+        << "Press enter if you want to exit the program\n"
+        << "Enter the number of your choice of a command: "; 
 
         // Read command from keyboard input
         std::string command;
         getline(std::cin, command);
 
+        std::cout << "\n";
+
         // Handle the command of the user's input
         if (command == "") {
+            log_message("CLOSE", "Connection to server has closed\n");
             break;
         } else if (command == "1") {
             get_msg(sock_fd);
@@ -250,13 +247,13 @@ int main(int argc, char *argv[]) {
         } else if (command == "3") {
             list_servers(sock_fd);
         } else {
-            std::cout << "Invalid command..." << std::endl;
+            log_message("INVALID", "Invalid command...");
         }
     }
 
     // Try to close the socket connection after client quit
     if (close(sock_fd) < 0) {
-        perror("Close failed");
+        log_message("ERROR", "Close failed");
         exit(0);
     }
 
