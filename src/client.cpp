@@ -1,24 +1,24 @@
 // Client from assignment 1
-#include <client_logs.hpp>
-#include <stdio.h>
-#include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
+#include <client_logs.hpp>
 #include <cstring>
-#include <vector>
+#include <iostream>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 constexpr int8_t SOH = 0x01; // Start of header
 constexpr int8_t STX = 0x02; // End of header
-constexpr int8_t ETX = 0x03; //End of message
+constexpr int8_t ETX = 0x03; // End of message
 
 const std::string GROUP_ID = "A5_9";
 
 #define MAX_BUFFER_SIZE 5000
 
 std::string frame_message(const std::string &message) {
-    uint8_t frame_size = sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
+    uint8_t frame_size =
+        sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
 
     uint16_t total_packet_size = message.length() + frame_size;
     total_packet_size = htons(total_packet_size);
@@ -29,7 +29,7 @@ std::string frame_message(const std::string &message) {
     framed_message.push_back(total_packet_size >> 0x08);
     framed_message.push_back(total_packet_size & 0x08);
     framed_message.push_back(STX);
-    for (const char& c : message) {
+    for (const char &c : message) {
         framed_message.push_back(c);
     }
     framed_message.push_back(ETX);
@@ -42,7 +42,8 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
     std::string framed_command = frame_message(command);
 
     // Send command to the server through the open socket
-    ssize_t bytes_sent = send(sock_fd, framed_command.c_str(), framed_command.length(), 0);
+    ssize_t bytes_sent =
+        send(sock_fd, framed_command.c_str(), framed_command.length(), 0);
 
     // Check if sending the command to server failed
     if (bytes_sent < 0) {
@@ -54,10 +55,12 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
 }
 
 std::string unframe_message(const std::string &message) {
-    
+
     ssize_t start_of_message_pos = message.find(STX, 0);
 
-    if (message[0] == SOH && message[message.size() - 6] == ETX) { // Make sure headers are there before removing
+    if (message[0] == SOH &&
+        message[message.size() - 6] ==
+            ETX) { // Make sure headers are there before removing
         return message.substr(start_of_message_pos + 1, message.size() - 6);
     }
     return message; // If headers are not there just return the message back
@@ -69,11 +72,12 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     // Set response timeout
     struct timeval tv;
-    tv.tv_sec = 5; // 5 second timeout
+    tv.tv_sec = 5;  // 5 second timeout
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
-    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv)) < 0) {
+    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv,
+                   sizeof(tv)) < 0) {
         perror("Error setting response timeout");
         exit(1);
     }
@@ -89,11 +93,14 @@ std::string receive_respons_from_server(int64_t sock_fd) {
     }
 
     // Unframe the message received from the server
-    return unframe_message(std::string(buffer, bytes_received)); // Cast the char buffer to a string
+    return unframe_message(std::string(
+        buffer, bytes_received)); // Cast the char buffer to a string
 }
 
 void get_msg(int64_t sock_fd) {
-    std::string command = "GETMSG," + GROUP_ID; // Might have to change so it does not include group id
+    std::string command =
+        "GETMSG," +
+        GROUP_ID; // Might have to change so it does not include group id
 
     // Send the command to the server (server command: GETMSG,<GROUP_ID>)
     send_command_to_server(sock_fd, command);
@@ -124,8 +131,10 @@ void send_msg(int64_t sock_fd) {
     std::cout << "Enter the message you want to deliver: ";
     std::getline(std::cin, message);
 
-    // Send the command to the server (server command: SENDMSG,<TP_GROUP_ID>,<FROM_GROUP_ID>,<message contents>)
-    std::string command = "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
+    // Send the command to the server (server command:
+    // SENDMSG,<TP_GROUP_ID>,<FROM_GROUP_ID>,<message contents>)
+    std::string command =
+        "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
     send_command_to_server(sock_fd, command);
 
     log_message("SENT", command);
@@ -161,7 +170,8 @@ void list_servers(int64_t sock_fd) {
     }
 }
 
-int64_t set_up_connection(const std::string &ip_string, int port) { // Might have to change ip parameter
+int64_t set_up_connection(const std::string &ip_string,
+                          int port) { // Might have to change ip parameter
     // Create the socket
     int64_t sock_fd;
 
@@ -172,7 +182,8 @@ int64_t set_up_connection(const std::string &ip_string, int port) { // Might hav
 
     // Setup socket address structure for connection
     struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr)); // Initialize server addr. struct.
+    memset(&server_addr, 0,
+           sizeof(server_addr)); // Initialize server addr. struct.
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
@@ -184,7 +195,8 @@ int64_t set_up_connection(const std::string &ip_string, int port) { // Might hav
     }
 
     // Connect to server
-    if (connect(sock_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+    if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) <
+        0) {
         perror("Connection failed");
         exit(0);
     }
@@ -193,15 +205,16 @@ int64_t set_up_connection(const std::string &ip_string, int port) { // Might hav
     return sock_fd;
 }
 
-
 int main(int argc, char *argv[]) {
-    // Check for right number of arguments - Gives error if more or less than 3 arguments
-    // Arguments: ./client 130.208.246.98 4009 - execute program, server ip and port nr.
+    // Check for right number of arguments - Gives error if more or less than 3
+    // arguments Arguments: ./client 130.208.246.98 4009 - execute program,
+    // server ip and port nr.
     if (argc != 3) {
-        perror("Wrong amount of arguments. Should be: ./client <server_ip> <port_nr>");
+        perror("Wrong amount of arguments. Should be: ./client <server_ip> "
+               "<port_nr>");
         return 1;
     }
-    
+
     // Read port from command line arguments and convert to an int
     int port = atoi(argv[2]);
 
@@ -211,15 +224,17 @@ int main(int argc, char *argv[]) {
     // Connect to the server
     int64_t sock_fd = set_up_connection(ip_string, port);
 
-    // After connect enter a loop to keep connection open and handle commands until user wants to exit
+    // After connect enter a loop to keep connection open and handle commands
+    // until user wants to exit
     while (true) {
         // We available commands
-        std::cout << "Available commands:\n" 
-        << "(1) GETMSG (Get a message from the server for your group)\n" 
-        << "(2) SENDMSG (Let server deliver a message to a group)\n" 
-        << "(3) LISTSERVERS (List servers your server is connected to)\n" 
-        << "Press enter if you want to exit the program\n"
-        << "Enter the number of your choice of a command "; 
+        std::cout
+            << "Available commands:\n"
+            << "(1) GETMSG (Get a message from the server for your group)\n"
+            << "(2) SENDMSG (Let server deliver a message to a group)\n"
+            << "(3) LISTSERVERS (List servers your server is connected to)\n"
+            << "Press enter if you want to exit the program\n"
+            << "Enter the number of your choice of a command ";
 
         // Read command from keyboard input
         std::string command;
@@ -244,6 +259,6 @@ int main(int argc, char *argv[]) {
         perror("Close failed");
         exit(0);
     }
-    
+
     return 0;
 }

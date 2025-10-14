@@ -7,8 +7,6 @@
 #include <inttypes.h>
 #include <iostream>
 #include <map>
-#include <ranges>
-#include <string_view>
 #include <netinet/in.h>
 #include <string>
 #include <sys/epoll.h>
@@ -24,12 +22,13 @@ constexpr int8_t ETX = 0x03;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
-int16_t send_stream(const std::string& stream_str, Client& client) {
+int16_t send_stream(const std::string &stream_str, Client &client) {
     constexpr int16_t MAX_STREAM_LEN = 5000;
 
-    uint8_t frame_size = sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
+    uint8_t frame_size =
+        sizeof(SOH) + sizeof(uint16_t) + sizeof(STX) + sizeof(ETX);
 
-    if(stream_str.length() > MAX_STREAM_LEN - frame_size){
+    if (stream_str.length() > MAX_STREAM_LEN - frame_size) {
         write_error("Tried To Send A Message Exceeding Max Length");
         return -1;
     }
@@ -43,7 +42,7 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
     stream.push_back(total_packet_size >> 0x08);
     stream.push_back(total_packet_size & 0x08);
     stream.push_back(STX);
-    for (const char& c : stream_str) {
+    for (const char &c : stream_str) {
         stream.push_back(c);
     }
     stream.push_back(ETX);
@@ -55,8 +54,8 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
                             msg.length - msg.total_sent, 0);
         if (sent + msg.total_sent < msg.length) {
             if (sent < 0) {
-                write_error("Failed to send stream("+stream_str+") to client " +
-                            std::to_string(client.fd));
+                write_error("Failed to send stream(" + stream_str +
+                            ") to client " + std::to_string(client.fd));
             } else {
                 msg.total_sent += sent;
             }
@@ -73,10 +72,11 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
     }
 
     int16_t sent;
-    if ((sent = send(client.fd, stream.data(), total_packet_size, 0)) < total_packet_size) {
+    if ((sent = send(client.fd, stream.data(), total_packet_size, 0)) <
+        total_packet_size) {
         if (sent < 0) {
-                write_error("Failed to send stream("+stream_str+") to client " +
-                            std::to_string(client.fd));
+            write_error("Failed to send stream(" + stream_str + ") to client " +
+                        std::to_string(client.fd));
             sent = 0;
         }
         Client::Msg new_msg;
@@ -91,33 +91,39 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
     return 0;
 }
 
-int16_t send_helo(Client& client) { return send_stream("HELO,A5_9", client); }
+int16_t send_helo(Client &client) { return send_stream("HELO,A5_9", client); }
 
-int16_t recv_helo(Client& client, Server& server, const std::string& name) { 
+int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     client.name = name;
-    std::map<int64_t, Client>& clients = server.get_server_clients();
+    std::map<int64_t, Client> &clients = server.get_server_clients();
     std::string message("SERVER,");
-    for(auto it = clients.begin(); it != clients.end(); ++it){
+    for (auto it = clients.begin(); it != clients.end(); ++it) {
         std::string address;
-        if(!inet_ntop(AF_INET, &it->second.addr.sin_addr, address.data(), 15)){
-            write_error(std::string("IP Address Of Client ").append(it->second.name).append(" Could Not Be Translated To String"));
+        if (!inet_ntop(AF_INET, &it->second.addr.sin_addr, address.data(),
+                       15)) {
+            write_error(std::string("IP Address Of Client ")
+                            .append(it->second.name)
+                            .append(" Could Not Be Translated To String"));
             continue;
         }
 
         message.append(name).append(",");
         message.append(address).append(",");
-        message.append(std::to_string(ntohs(it->second.addr.sin_port))).append(";");
+        message.append(std::to_string(ntohs(it->second.addr.sin_port)))
+            .append(";");
     }
     return send_stream(message, client);
 }
 
-int16_t send_keepalive(std::map<int64_t, Client>& clients) {
+int16_t send_keepalive(std::map<int64_t, Client> &clients) {
     int16_t num_failures = 0;
-    for(auto it = clients.begin(); it != clients.end(); ++it){
-        if(send_stream(std::string("KEEPALIVE,")
-                       .append(std::to_string(it->second.pending_messages)),
-                       it->second) == -1){
-            write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
+    for (auto it = clients.begin(); it != clients.end(); ++it) {
+        if (send_stream(
+                std::string("KEEPALIVE,")
+                    .append(std::to_string(it->second.pending_messages)),
+                it->second) == -1) {
+            write_error(std::string("Failed To Send KEEPALIVE To")
+                            .append(it->second.name));
             num_failures += 1;
         }
     }
@@ -125,44 +131,48 @@ int16_t send_keepalive(std::map<int64_t, Client>& clients) {
     return num_failures;
 }
 
-int16_t recieve_keepalive(Client& client, uint16_t num_messages){
+int16_t recieve_keepalive(Client &client, uint16_t num_messages) {
     client.pending_messages = num_messages;
 
-    if(num_messages > 0){
+    if (num_messages > 0) {
         client.status = ClientState::ACTIVE;
     }
 
     return 0;
 }
 
-int16_t get_msg(Client& client, Server& server){
-    if(client.name != "A5_9"){
-        write_error("Client With Insufficient Privileges To GETMSG Made An Attempt");
+int16_t get_msg(Client &client, Server &server) {
+    if (client.name != "A5_9") {
+        write_error(
+            "Client With Insufficient Privileges To GETMSG Made An Attempt");
         return -1;
     }
 
-    return send_stream(server.GetMessageForCnC(), client); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
+    return send_stream(server.get_message_for_cnc(),
+                       client); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
 }
 
 int16_t get_msg(int16_t group_id) { return 0; }
 
-int16_t send_msg(Server& server, int16_t to_group, int16_t from_group, const std::string& message) {
-    if(to_group == 9){
-        server.StoreMessageForCnC(message); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
+int16_t send_msg(Server &server, int16_t to_group, int16_t from_group,
+                 const std::string &message) {
+    if (to_group == 9) {
+        server.store_message_for_cnc(
+            message); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
     }
-    return 0; 
+    return 0;
 }
 
 int16_t req_status() { return 0; }
 
-int16_t resp_status(std::map<int64_t, Client>& clients) { return 0; }
+int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
 
-std::vector<std::string> extract_parameters(const std::string payload){
+std::vector<std::string> extract_parameters(const std::string payload) {
     std::vector<std::string> params;
     size_t delim_pos = payload.find(",");
-    while(delim_pos != std::string::npos){
+    while (delim_pos != std::string::npos) {
         size_t next_delim = payload.find(",", delim_pos);
-        if(next_delim == std::string::npos){
+        if (next_delim == std::string::npos) {
             params.push_back(payload.substr(delim_pos));
             break;
         }
@@ -172,21 +182,24 @@ std::vector<std::string> extract_parameters(const std::string payload){
     return params;
 }
 
-void message_handler(Client& client, Server& server, const std::string& command) {
-    if(command.find("GETMSG") != std::string::npos){
+void message_handler(Client &client, Server &server,
+                     const std::string &command) {
+    if (command.find("GETMSG") != std::string::npos) {
         get_msg(client, server);
     }
-    if(command.find("SENDMSG") != std::string::npos){
+    if (command.find("SENDMSG") != std::string::npos) {
         std::vector<std::string> parameters = extract_parameters(command);
-        if(parameters.size() < 3){
-            write_error("Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...");
+        if (parameters.size() < 3) {
+            write_error("Wrong Number Of Parameters Passed To SENDMSG Aborting "
+                        "OPERATION...");
             return;
         }
-        send_msg(server, std::stoi(parameters[0]), std::stoi(parameters[1]), parameters[2]);
+        send_msg(server, std::stoi(parameters[0]), std::stoi(parameters[1]),
+                 parameters[2]);
     }
 }
 
-std::vector<std::string> extract_frames(const std::string& message) {
+std::vector<std::string> extract_frames(const std::string &message) {
     // Extract message frames from buffer
 
     std::vector<std::string> commands;
@@ -208,12 +221,13 @@ std::vector<std::string> extract_frames(const std::string& message) {
     return commands;
 }
 
-std::vector<std::string> extract_payload(const std::vector<std::string>& messages) {
+std::vector<std::string>
+extract_payload(const std::vector<std::string> &messages) {
     std::vector<std::string> commands;
 
     for (int i = 0; i < messages.size(); i++) {
         std::string message = messages[i];
-        size_t stx_pos = message.find(STX);       // Start of command
+        size_t stx_pos = message.find(STX);          // Start of command
         size_t end_pos = message.find(STX, stx_pos); // Start of next command
 
         std::string command =
@@ -225,7 +239,7 @@ std::vector<std::string> extract_payload(const std::vector<std::string>& message
 }
 
 // TODO: Change this func, so it handles read stuff
-void handle_client(Client& client, Server& serv) {
+void handle_client(Client &client, Server &serv) {
     // Read from client and call message_handler
     // Add framing to message and send
     std::cout << "Client: " << client.fd << " called\n";
@@ -260,7 +274,7 @@ void handle_client(Client& client, Server& serv) {
 int main(int argc, char **argv) {
     if (argc != 2) {
         std::cerr << "Port argument must be specified\nExample: "
-            "./tsamgroup9 4009\n";
+                     "./tsamgroup9 4009\n";
         return -1;
     }
     int16_t port = atoi(argv[1]);
@@ -273,18 +287,22 @@ int main(int argc, char **argv) {
     while (!finished) {
         int16_t num_events = serv.wait_for_events();
 
-        // NOTE: Had To Add std::ref() here because 
-        //       otherwise the thread does not get the real reference but a copy of it
+        // NOTE: Had To Add std::ref() here because
+        //       otherwise the thread does not get the real reference but a copy
+        //       of it
 
         for (int16_t i = 0; i < num_events; ++i) {
             if (serv.check_for_new_client(i)) {
-                Client* new_client = serv.register_client(); 
+                Client *new_client = serv.register_client();
                 serv.dispatch(send_helo, std::ref(*new_client));
             } else {
 
                 // If EPOLLIN is set, it's ready to read
                 if ((serv.get_event_status(i) & EPOLLIN) != 0) {
-                    serv.dispatch(handle_client, std::ref(serv.get_server_client(serv.get_event_socket(i))),std::ref(serv));
+                    serv.dispatch(handle_client,
+                                  std::ref(serv.get_server_client(
+                                      serv.get_event_socket(i))),
+                                  std::ref(serv));
                 }
 
                 // If EPOLLOUT is set, it's ready to write
