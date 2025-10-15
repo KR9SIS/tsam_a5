@@ -9,6 +9,7 @@
 #include <vector>
 #include <csignal>
 #include <client_logs.hpp>
+#include <arpa/inet.h>
 
 constexpr int8_t SOH = 0x01; // Start of header
 constexpr int8_t STX = 0x02; // End of header
