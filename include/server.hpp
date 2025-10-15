@@ -118,6 +118,7 @@ class Server {
         if (clients.size() > MAX_CLIENTS) {
             for (std::map<int64_t, Client>::iterator it = clients.begin();
                  it != clients.end(); ++it) {
+                // Deletes oldest client
                 if (it->second.client_num == 1) {
                     delete_client(it->second);
                     break;
