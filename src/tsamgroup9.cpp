@@ -22,8 +22,9 @@ constexpr int8_t ETX = 0x03;
 
 constexpr u_int8_t BACKLOG = 5; // Max length of queue of waiting connections
 
-int16_t send_stream(const std::string& stream_str, Client& client) {
-    constexpr uint16_t frame_overhead = 1 /*SOH*/ + 2 /*len*/ + 1 /*STX*/ + 1 /*ETX*/;
+int16_t send_stream(const std::string &stream_str, Client &client) {
+    constexpr uint16_t frame_overhead =
+        1 /*SOH*/ + 2 /*len*/ + 1 /*STX*/ + 1 /*ETX*/;
     constexpr uint16_t MAX_STREAM_LEN = 5000;
 
     if (stream_str.size() > MAX_STREAM_LEN - frame_overhead) {
@@ -31,14 +32,15 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
         return -1;
     }
 
-    uint16_t total_len = static_cast<uint16_t>(stream_str.size() + frame_overhead);
+    uint16_t total_len =
+        static_cast<uint16_t>(stream_str.size() + frame_overhead);
     uint16_t net_len = htons(total_len);
 
     std::vector<char> stream;
     stream.reserve(total_len);
     stream.push_back(SOH);
-    stream.push_back(static_cast<char>((net_len >> 8) & 0xFF));  // high byte
-    stream.push_back(static_cast<char>( net_len & 0xFF)); // LOW byte
+    stream.push_back(static_cast<char>((net_len >> 8) & 0xFF)); // high byte
+    stream.push_back(static_cast<char>(net_len & 0xFF));        // LOW byte
     stream.push_back(STX);
     stream.insert(stream.end(), stream_str.begin(), stream_str.end());
     stream.push_back(ETX);
@@ -46,13 +48,17 @@ int16_t send_stream(const std::string& stream_str, Client& client) {
     // Use the vector's size (host order) as the number of bytes to send
     ssize_t sent = send(client.fd, stream.data(), stream.size(), 0);
     if (sent < 0 || static_cast<size_t>(sent) != stream.size()) {
-        write_error("Failed to send stream(" + stream_str + ") to client " + std::to_string(client.fd));
+        write_error("Failed to send stream(" + stream_str + ") to client " +
+                    std::to_string(client.fd));
         return -1;
     }
     return 0;
 }
 
-int16_t send_helo(Client &client) { return send_stream("HELO,A5_9", client); }
+int16_t send_helo(Client &client) {
+    //
+    return send_stream("HELO,A5_9", client);
+}
 
 int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     client.name = name;
@@ -113,7 +119,7 @@ int16_t get_msg(Client &client, Server &server) {
                        client); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
 }
 
-//int16_t get_msg(int16_t group_id) { return 0; }
+// int16_t get_msg(int16_t group_id) { return 0; }
 
 int16_t send_msg(Server &server, int16_t to_group, int16_t from_group,
                  const std::string &message) {
@@ -167,16 +173,19 @@ std::vector<std::string> extract_frames(const std::string &message) {
 
     while (start < message.size()) {
         size_t soh = message.find(SOH, start);
-        if (soh == std::string::npos) break;
+        if (soh == std::string::npos)
+            break;
 
         // Need at least SOH + 2 len + STX
-        if (soh + 4 >= message.size()) break;
+        if (soh + 4 >= message.size())
+            break;
 
-        uint16_t len = (static_cast<unsigned char>(message[soh+1]) << 8) |
-                        static_cast<unsigned char>(message[soh+2]);
+        uint16_t len = (static_cast<unsigned char>(message[soh + 1]) << 8) |
+                       static_cast<unsigned char>(message[soh + 2]);
 
         // Full frame is len bytes starting at SOH
-        if (soh + len > message.size()) break;  // Partial frame - wait for more
+        if (soh + len > message.size())
+            break; // Partial frame - wait for more
 
         frames.push_back(message.substr(soh, len));
         start = soh + len;
@@ -184,14 +193,19 @@ std::vector<std::string> extract_frames(const std::string &message) {
     return frames;
 }
 
-std::vector<std::string> extract_payload(const std::vector<std::string>& messages) {
+std::vector<std::string>
+extract_payload(const std::vector<std::string> &messages) {
     std::vector<std::string> payloads;
-    for (const std::string& f : messages) {
+    for (const std::string &f : messages) {
         // f = SOH | len_hi | len_lo | STX | payload (message) | ETX
-        if (f.size() < 5) continue;
-        if (static_cast<unsigned char>(f[0]) != SOH) continue;
-        if (static_cast<unsigned char>(f[3]) != STX) continue;
-        if (static_cast<unsigned char>(f.back()) != ETX) continue;
+        if (f.size() < 5)
+            continue;
+        if (static_cast<unsigned char>(f[0]) != SOH)
+            continue;
+        if (static_cast<unsigned char>(f[3]) != STX)
+            continue;
+        if (static_cast<unsigned char>(f.back()) != ETX)
+            continue;
 
         payloads.push_back(f.substr(4, f.size() - 5)); // between STX and ETX
     }
@@ -199,7 +213,7 @@ std::vector<std::string> extract_payload(const std::vector<std::string>& message
 }
 
 // Read from client, unframe, and call message_handler
-void handle_client(Client& client, Server& serv) {
+void handle_client(Client &client, Server &serv) {
     // Add framing to message and send
     std::cout << "Client: " << client.fd << " called\n";
 
