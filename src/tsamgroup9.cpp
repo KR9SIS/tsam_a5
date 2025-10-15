@@ -249,34 +249,34 @@ int main(int argc, char **argv) {
     }
     int16_t port = atoi(argv[1]);
 
-    Server serv(port);
+    Server server(port);
     std::cout << "Server started. Listening on port " << port << "\n";
 
     bool finished = false;
     int16_t num_events;
     while (!finished) {
-        int16_t num_events = serv.wait_for_events();
+        int16_t num_events = server.wait_for_events();
 
         // NOTE: Had To Add std::ref() here because
         //       otherwise the thread does not get the real reference but a copy
         //       of it
 
         for (int16_t i = 0; i < num_events; ++i) {
-            if (serv.check_for_new_client(i)) {
-                Client *new_client = serv.register_client();
-                serv.dispatch(send_helo, std::ref(*new_client));
+            if (server.check_for_new_client(i)) {
+                Client *new_client = server.register_client();
+                server.dispatch(send_helo, std::ref(*new_client));
             } else {
 
                 // If EPOLLIN is set, it's ready to read
-                if ((serv.get_event_status(i) & EPOLLIN) != 0) {
-                    serv.dispatch(handle_client,
-                                  std::ref(serv.get_server_client(
-                                      serv.get_event_socket(i))),
-                                  std::ref(serv));
+                if ((server.get_event_status(i) & EPOLLIN) != 0) {
+                    server.dispatch(handle_client,
+                                    std::ref(server.get_server_client(
+                                        server.get_event_socket(i))),
+                                    std::ref(server));
                 }
 
                 // If EPOLLOUT is set, it's ready to write
-                if ((serv.get_event_status(i) & EPOLLOUT) != 0) {
+                if ((server.get_event_status(i) & EPOLLOUT) != 0) {
                     continue; // Handle writing the sockets (send to ppl) -
                     // Change later
                 }
