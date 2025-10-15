@@ -2,9 +2,12 @@
 #define SERVER_CLASS
 #include "./serv_client.hpp"
 #include "helpers.h"
+#include "operations.hpp"
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <map>
+#include <memory>
 #include <netinet/in.h>
 #include <string>
 #include <sys/epoll.h>
@@ -18,7 +21,7 @@ constexpr int8_t MAX_CLIENTS = 8;
 constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
-class Server {
+class Server{
     std::map<int64_t, Client> clients;
     std::queue<std::string> message_store;
 
@@ -68,7 +71,7 @@ class Server {
         }
     }
 
-  public:
+public:
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = open_socket(port)) < 0) {
             write_error("Failed to open socket");
@@ -97,27 +100,43 @@ class Server {
         }
     }
 
+    void start() {
+        while(true){
+            int8_t num_events;
+            if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
+                                         EPOLL_BLOCK)) < 1) {
+                write_error("Failed to wait for events");
+                cleanup();
+                exit(-1);
+            }
+
+            for (int16_t i = 0; i < num_events; ++i) {
+                if (check_for_new_client(i)) {
+                    register_client();
+                } else {
+                    // If EPOLLIN is set, it's ready to read
+                    if ((get_event_status(i) & EPOLLIN) != 0) {
+                        get_server_client(get_event_socket(i)).set_read();
+                    }
+
+                    // If EPOLLOUT is set, it's ready to write
+                    if ((get_event_status(i) & EPOLLOUT) != 0) {
+                        get_server_client(get_event_socket(i)).set_write();
+                    }
+                }
+            }
+        }
+    }
+
     bool check_for_new_client(int8_t event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
 
-    int8_t wait_for_events() {
-        int8_t num_events;
-        if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
-                                     EPOLL_BLOCK)) < 1) {
-            write_error("Failed to wait for events");
-            cleanup();
-            exit(-1);
-        }
-
-        return num_events;
-    }
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
-    Client *register_client() {
+    void register_client() {
         if (clients.size() > MAX_CLIENTS) {
-            for (std::map<int64_t, Client>::iterator it = clients.begin();
-                 it != clients.end(); ++it) {
+            for (auto it = clients.begin(); it != clients.end(); ++it) {
                 // Deletes oldest client
                 if (it->second.client_num == 1) {
                     delete_client(it->second);
@@ -126,35 +145,37 @@ class Server {
             }
         }
         // Accept new client connection
-        Client client = Client();
+        Client client;
         socklen_t client_add_len = sizeof(client.addr);
 
         if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr,
                                 &client_add_len)) < 0) {
             write_error("Failed to accept client connection");
-            return nullptr;
+            return;
         }
 
         client.client_num = clients.size();
-        clients[client.fd] = client;
+        clients.insert(std::pair<int64_t, Client>(client.fd, client));
         // Add client socket to epoll
         event.events = EPOLLIN;
         event.data.fd = client.fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
             write_error("Failed to add client socket to epoll instance");
             close(client.fd);
-            return nullptr;
+            return;
         }
-
-        return &clients[client.fd];
+        
+        dispatch(send_helo,std::ref(clients[client.fd]));// Initial Hello (This Will Exit As Soon As It's Done Sending)
+        // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For Each Event
+        dispatch(handle_client_read, std::ref(clients[client.fd]), std::ref(*this));// Dispatch READ Thread
+        dispatch(handle_client_write, std::ref(clients[client.fd]), std::ref(*this));// Dispatch WRITE Thread
     }
 
-    void delete_client(Client client) {
+    void delete_client(Client& client) {
         clients.erase(client.fd);
         close(client.fd);
 
-        for (std::map<int64_t, Client>::iterator it = clients.begin();
-             it != clients.end(); ++it) {
+        for (auto it = clients.begin(); it != clients.end(); ++it) {
             if (it->second.client_num >= client.client_num) {
                 it->second.client_num--;
             }
@@ -180,6 +201,10 @@ class Server {
     }
 
     std::string get_message_for_cnc() {
+        if(message_store.empty()){
+            return "No Messages!!";
+        }
+
         std::string message = message_store.front();
         message_store.pop();
         return message;

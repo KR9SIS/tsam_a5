@@ -1,11 +1,10 @@
 # Compiler/config
 CXX       := g++
 CXXFLAGS  := -std=c++23 -Werror
-CPPFLAGS  := -Iinclude -Ilogs -MMD -MP
+CPPFLAGS  := -Iinclude -MMD -MP
 
 # Dirs
 SRCDIR    := src
-LOGDIR    := logs
 INCDIR    := include
 OBJDIR    := obj
 BINDIR    := bin
@@ -18,12 +17,13 @@ SERVER    := $(BINDIR)/tsamgroup9
 CLIENT_SOURCES := \
   $(SRCDIR)/client.cpp \
   $(SRCDIR)/helpers.cpp \
-  $(LOGDIR)/client_logs.cpp \
+  $(SRCDIR)/client_logs.cpp \
 
 SERVER_SOURCES := \
   $(SRCDIR)/tsamgroup9.cpp \
   $(SRCDIR)/helpers.cpp \
-  $(LOGDIR)/client_logs.cpp \
+  $(SRCDIR)/client_logs.cpp \
+  $(SRCDIR)/operations.cpp
 
 # Object files (mirror directory structure under obj/)
 CLIENT_OBJECTS := $(CLIENT_SOURCES:%.cpp=$(OBJDIR)/%.o)
