@@ -1,5 +1,6 @@
 #include "helpers.h"
 #include "server.hpp"
+#include <../logs/client_logs.hpp>
 #include <arpa/inet.h>
 #include <cstdint>
 #include <cstdlib>
@@ -29,6 +30,7 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
 
     if (stream_str.size() > MAX_STREAM_LEN - frame_overhead) {
         write_error("Tried To Send A Message Exceeding Max Length");
+        log_message("ERROR", "Tried to send a message exceeding max length");
         return -1;
     }
 
@@ -50,8 +52,10 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
     if (sent < 0 || static_cast<size_t>(sent) != stream.size()) {
         write_error("Failed to send stream(" + stream_str + ") to client " +
                     std::to_string(client.fd));
+        log_message("ERROR", "Failed to send message: " + stream_str);
         return -1;
     }
+    log_message("SENT", stream_str);
     return 0;
 }
 
@@ -61,6 +65,7 @@ int16_t send_helo(Client &client) {
 }
 
 int16_t recv_helo(Client &client, Server &server, const std::string &name) {
+    log_message("RECV_HELO", name);
     client.name = name;
     std::map<int64_t, Client> &clients = server.get_server_clients();
     std::string message("SERVER,");
@@ -151,6 +156,7 @@ std::vector<std::string> extract_parameters(const std::string payload) {
 
 void message_handler(Client &client, Server &server,
                      const std::string &command) {
+    log_message("RESPONSE", client.name + " sent " + command);
     if (command.find("GETMSG") != std::string::npos) {
         get_msg(client, server);
     }
@@ -264,14 +270,16 @@ int main(int argc, char **argv) {
         for (int16_t i = 0; i < num_events; ++i) {
             if (server.check_for_new_client(i)) {
                 Client *new_client = server.register_client();
+                log_message("REGISTER", new_client->name);
                 server.dispatch(send_helo, std::ref(*new_client));
             } else {
 
                 // If EPOLLIN is set, it's ready to read
                 if ((server.get_event_status(i) & EPOLLIN) != 0) {
-                    server.dispatch(handle_client,
-                                    std::ref(server.get_server_client(
-                                        server.get_event_socket(i))),
+                    Client client =
+                        server.get_server_client(server.get_event_socket(i));
+                    log_message("EPOLLIN", client.name);
+                    server.dispatch(handle_client, std::ref(client),
                                     std::ref(server));
                 }
 
