@@ -219,6 +219,7 @@ int main(int argc, char *argv[]) {
 
     std::signal(SIGINT, handle_signal);
     std::signal(SIGTERM, handle_signal);
+    send_command_to_server(sock_fd,"HELO,A5_9");
 
 
     // After connect enter a loop to keep connection open and handle commands until user wants to exit

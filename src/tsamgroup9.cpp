@@ -2,6 +2,7 @@
 #include "server.hpp"
 #include <../logs/client_logs.hpp>
 #include <arpa/inet.h>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -141,14 +142,21 @@ int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
 
 std::vector<std::string> extract_parameters(const std::string payload) {
     std::vector<std::string> params;
+
     size_t delim_pos = payload.find(",");
-    while (delim_pos != std::string::npos) {
-        size_t next_delim = payload.find(",", delim_pos);
-        if (next_delim == std::string::npos) {
-            params.push_back(payload.substr(delim_pos));
-            break;
+
+    if(delim_pos == std::string::npos){
+        return params;
+    }
+
+    while (true) {
+        size_t prev_delim = delim_pos;
+        delim_pos = payload.find(",", prev_delim + 1);
+        if(delim_pos == std::string::npos || delim_pos == payload.size() - 1){
+            params.push_back(payload.substr(prev_delim + 1));
+            return params;
         }
-        params.push_back(payload.substr(delim_pos, next_delim - delim_pos));
+        params.push_back(payload.substr(delim_pos + 1, delim_pos - prev_delim - 1));
     }
 
     return params;
@@ -170,50 +178,50 @@ void message_handler(Client &client, Server &server,
         send_msg(server, std::stoi(parameters[0]), std::stoi(parameters[1]),
                  parameters[2]);
     }
+    if(command.find("HELO") != std::string::npos){
+        std::vector<std::string> parameters = extract_parameters(command);
+        if(parameters.size() < 1){
+            write_error("Wrong Number Of Parameters Passed To HELO Aborting OPERATION...");
+            return;
+        }
+        recv_helo(client, server,parameters[0]);
+    }
 }
 
+///Extracts The Packets From The Given Message
+///
+///Example:
+///    <SOH><length><STX><message><ETX><SOH><length><STX><message><ETX> 
+///
+///    => {<SOH><length><STX><message><ETX>,<SOH><length><STX><message><ETX>}
 std::vector<std::string> extract_frames(const std::string &message) {
-    // Extract message frames from buffer
-    std::vector<std::string> frames;
-    size_t start = 0;
-
-    while (start < message.size()) {
-        size_t soh = message.find(SOH, start);
-        if (soh == std::string::npos)
-            break;
-
-        // Need at least SOH + 2 len + STX
-        if (soh + 4 >= message.size())
-            break;
-
-        uint16_t len = (static_cast<unsigned char>(message[soh + 1]) << 8) |
-                       static_cast<unsigned char>(message[soh + 2]);
-
-        // Full frame is len bytes starting at SOH
-        if (soh + len > message.size())
-            break; // Partial frame - wait for more
-
-        frames.push_back(message.substr(soh, len));
-        start = soh + len;
+    std::vector<std::string> packets;
+    size_t end_position = message.find(ETX);
+    if(end_position == std::string::npos){
+        // NOTE: Indicates that it's a partial packet
+        return packets;
     }
-    return frames;
+
+    packets.push_back(message.substr(0, end_position));
+    while(true){
+        size_t current_pos = end_position;
+        end_position = message.find(ETX, end_position);
+        if(end_position == std::string::npos || end_position == message.size() - 1){
+            return packets;
+        }
+        packets.push_back(message.substr(current_pos, end_position - current_pos));
+    }
+
+    return packets;
 }
 
 std::vector<std::string>
 extract_payload(const std::vector<std::string> &messages) {
     std::vector<std::string> payloads;
-    for (const std::string &f : messages) {
-        // f = SOH | len_hi | len_lo | STX | payload (message) | ETX
-        if (f.size() < 5)
-            continue;
-        if (static_cast<unsigned char>(f[0]) != SOH)
-            continue;
-        if (static_cast<unsigned char>(f[3]) != STX)
-            continue;
-        if (static_cast<unsigned char>(f.back()) != ETX)
-            continue;
-
-        payloads.push_back(f.substr(4, f.size() - 5)); // between STX and ETX
+    for (const std::string &message : messages) {
+        size_t STX_pos = message.find(STX);
+        size_t ETX_pos = message.find(ETX);
+        payloads.push_back(message.substr(STX_pos + 1, ETX_pos - STX_pos - 2));
     }
     return payloads;
 }
@@ -221,26 +229,27 @@ extract_payload(const std::vector<std::string> &messages) {
 // Read from client, unframe, and call message_handler
 void handle_client(Client &client, Server &serv) {
     // Add framing to message and send
-    std::cout << "Client: " << client.fd << " called\n";
-
-    char buffer[5000] = {0};
+    char buffer[5000];
 
     while (true) {
-        int bytes_read = read(client.fd, buffer, sizeof(buffer));
+        int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
+        log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
         if (bytes_read <= 0) {
+            log_message("INFO", "Nothing To Read Exiting handle_client");
             break;
         }
 
         // Unframe
         std::string message(buffer, static_cast<size_t>(bytes_read));
+        log_message("PROCESSING", message);
 
         std::vector<std::string> messages = extract_frames(message);
         std::vector<std::string> commands = extract_payload(messages);
 
+        log_message("INFO","Received " + std::to_string(commands.size()) + " Commands");
         // Call message handler on every message
-        for (int i = 0; i < commands.size(); i++) {
-            std::string command = commands[i];
-            message_handler(client, serv, command);
+        for (auto it = commands.begin(); it != commands.end(); ++it) {
+            message_handler(client, serv, *it);
         }
     }
 
@@ -273,13 +282,12 @@ int main(int argc, char **argv) {
                 log_message("REGISTER", new_client->name);
                 server.dispatch(send_helo, std::ref(*new_client));
             } else {
-
                 // If EPOLLIN is set, it's ready to read
                 if ((server.get_event_status(i) & EPOLLIN) != 0) {
-                    Client client =
-                        server.get_server_client(server.get_event_socket(i));
-                    log_message("EPOLLIN", client.name);
-                    server.dispatch(handle_client, std::ref(client),
+                    // NOTE: Before this was making a copy of the client and sending that as a reference.
+                    //       This will grab the real reference so don't change it back because we want to modify the original client
+                    log_message("EPOLL:RECV", server.get_server_client(server.get_event_socket(i)).name);
+                    server.dispatch(handle_client, std::ref(server.get_server_client(server.get_event_socket(i))),
                                     std::ref(server));
                 }
 
