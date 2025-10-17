@@ -45,6 +45,21 @@ class Client {
           pending_messages(other.pending_messages),
           outbound_messages(other.outbound_messages) {}
 
+    void update_connections(std::vector<std::string> conns) {
+        std::lock_guard<std::mutex> lock(client_mutex);
+        connections.clear();
+        for (std::string conn : conns) {
+            std::vector<std::string> parts = extract_parameters(conn, ",");
+            if (this->name != parts[0]) {
+                struct conn new_conn;
+                new_conn.name = parts[0];
+                new_conn.ip = parts[1];
+                new_conn.port = std::stoi(parts[2]);
+                connections[name] = new_conn;
+            }
+        }
+    }
+
     int get_event_status() {
         std::lock_guard<std::mutex> lock(client_mutex);
         return events;

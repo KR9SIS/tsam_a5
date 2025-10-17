@@ -127,6 +127,8 @@ void message_handler(Client &client, Server &server,
                      const std::string &command) {
     log_message("RESPONSE", client.name + " sent " + command);
     if (command.find("SERVER") != std::string::npos) {
+        std::vector<std::string> client_conn = extract_parameters(command, ";");
+        client.update_connections(client_conn);
     }
     if (command.find("GETMSG") != std::string::npos) {
         get_msg(client, server);
