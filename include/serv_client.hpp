@@ -2,12 +2,12 @@
 #define SERVER_CLIENT
 
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <netinet/in.h>
 #include <queue>
 #include <string>
 #include <sys/epoll.h>
-#include <vector>
 
 // WARNING: Not Sure If We Should Use This Or
 // Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No
@@ -18,6 +18,12 @@ class Client {
     std::mutex client_mutex;
     int events;
 
+    struct conn {
+        std::string name;
+        std::string ip;
+        uint16_t port;
+    };
+
   public:
     std::queue<std::string> outbound_messages;
     ClientState status;
@@ -27,7 +33,7 @@ class Client {
     int64_t fd;
     int8_t client_num;
     uint16_t pending_messages;
-    std::vector<std::string> connections;
+    std::map<std::string, conn> connections;
 
     Client() : name(""), fd(-1), status(ClientState::ACTIVE), events(0) {};
     Client(const Client &other)

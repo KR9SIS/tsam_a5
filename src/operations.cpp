@@ -90,8 +90,8 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group,
             client.push_message(message);
             return 0;
         }
-        for (auto &conn : client.connections) {
-            if (conn == to_group) {
+        for (auto &[_, conn] : client.connections) {
+            if (conn.name == to_group) {
                 client.push_message(message);
                 return 0;
             }
