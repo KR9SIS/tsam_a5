@@ -136,7 +136,7 @@ class Server {
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
-        if (clients.size() > MAX_CLIENTS) {
+        if (clients.size() == MAX_CLIENTS) {
             for (auto it = clients.begin(); it != clients.end(); ++it) {
                 // Deletes oldest client
                 if (it->second.client_num == 1) {
