@@ -14,8 +14,10 @@
 #include <thread>
 #include <vector>
 
-int64_t open_client_socket(Server server, std::string ip, int16_t port,
+int64_t open_client_socket(Server &server, std::string ip, int16_t port,
                            std::string name) {
+    log_message("PROCESSING",
+                "Opening client socket " + ip + ":" + std::to_string(port));
     int64_t sock;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         log_message("ERROR", "Creating socket for client at " + ip + ":" +
@@ -49,18 +51,8 @@ int64_t open_client_socket(Server server, std::string ip, int16_t port,
     server.get_server_clients().insert(
         std::pair<int64_t, Client>(client.fd, client));
 
-    // Add client socket to epoll
-    event.events = EPOLLIN;
-    event.data.fd = client.fd;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
-        log_message(
-            "ERROR",
-            "Failed to add client socket to epoll instance for client at " +
-                ip + ":" + std::to_string(port));
-        close(client.fd);
-        return -1;
-    }
     server.client_names.insert(name);
+    send_helo(client);
     return client.fd;
 }
 
@@ -73,7 +65,7 @@ void send_helos(Server &server) {
     }
 }
 int16_t send_helo(Client &client) {
-    //
+    log_message("PROCESSING", "Sending HELO to " + client.name);
     return send_stream("HELO,A5_9", client);
 }
 
@@ -178,6 +170,7 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group,
     return 0;
 }
 
+// WARNING: IMPLEMENT
 int16_t req_status() { return 0; }
 int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
 
@@ -193,8 +186,8 @@ void message_handler(Client &client, Server &server,
             for (auto &[_, client_conn] : client.connections) {
                 if (server.client_names.find(client_conn.name) !=
                     server.client_names.end()) {
-                    server.open_client_socket(client_conn.ip, client_conn.port,
-                                              client_conn.name);
+                    open_client_socket(server, client_conn.ip, client_conn.port,
+                                       client_conn.name);
                 }
                 if (server.client_names.size() == server.max_clients) {
                     break;

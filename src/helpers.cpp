@@ -40,7 +40,7 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
     stream.push_back(ETX);
 
     // Use the vector's size (host order) as the number of bytes to send
-    ssize_t sent;
+    ssize_t sent = 0;
     log_message("SENDING", stream_str);
     while ((sent += send(client.fd, stream.data() + sent, stream.size() - sent,
                          0)) != stream.size()) {
