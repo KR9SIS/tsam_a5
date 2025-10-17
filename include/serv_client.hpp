@@ -2,32 +2,24 @@
 #define SERVER_CLIENT
 
 #include <cstdint>
+#include <mutex>
 #include <netinet/in.h>
 #include <queue>
 #include <string>
 #include <sys/epoll.h>
 #include <vector>
-#include <mutex>
 
-// WARNING: Not Sure If We Should Use This Or 
-// Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No KeepAlive)
-enum class ClientState{ 
-    ACTIVE = 0,
-    INACTIVE = 1
-};
-
+// WARNING: Not Sure If We Should Use This Or
+// Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No
+// KeepAlive)
+enum class ClientState { ACTIVE = 0, INACTIVE = 1 };
 
 class Client {
-    std::mutex client_event_mutex;
+    std::mutex client_mutex;
     int events;
 
   public:
-    struct Msg {
-        int16_t total_sent;
-        int16_t length;
-        char *stream_data;
-    };
-    std::queue<Msg> commands;
+    std::queue<std::string> outbound_messages;
     ClientState status;
 
     std::string name;
@@ -38,36 +30,55 @@ class Client {
     std::vector<std::string> connected;
 
     Client() : name(""), fd(-1), status(ClientState::ACTIVE), events(0) {};
-    Client(const Client& other): name(other.name), fd(other.fd), status(other.status), events(other.events),
-        addr(other.addr), client_num(other.client_num), connected(other.connected), pending_messages(other.pending_messages),
-        commands(other.commands){}
-    
-    int get_event_status(){
+    Client(const Client &other)
+        : name(other.name), fd(other.fd), status(other.status),
+          events(other.events), addr(other.addr), client_num(other.client_num),
+          connected(other.connected), pending_messages(other.pending_messages),
+          outbound_messages(other.outbound_messages) {}
+
+    int get_event_status() {
+        std::lock_guard<std::mutex> lock(client_mutex);
         return events;
     }
 
-    void set_read(){
-        client_event_mutex.lock();
+    void set_read() {
+        std::lock_guard<std::mutex> lock(client_mutex);
         events |= EPOLLIN;
-        client_event_mutex.unlock();
     }
 
-    void reset_read(){
-        client_event_mutex.lock();
+    void reset_read() {
+        std::lock_guard<std::mutex> lock(client_mutex);
         events &= ~EPOLLIN;
-        client_event_mutex.unlock();
     }
 
-    void set_write(){
-        client_event_mutex.lock();
+    void set_write() {
+        std::lock_guard<std::mutex> lock(client_mutex);
         events |= EPOLLOUT;
-        client_event_mutex.unlock();
     }
 
-    void reset_write(){
-        client_event_mutex.lock();
+    void reset_write() {
+        std::lock_guard<std::mutex> lock(client_mutex);
         events &= ~EPOLLOUT;
-        client_event_mutex.unlock();
+    }
+
+    void push_message(const std::string &message) {
+        std::lock_guard<std::mutex> lock(client_mutex);
+        outbound_messages.push(message);
+    }
+
+    void pop_message() {
+        std::lock_guard<std::mutex> lock(client_mutex);
+        if (!outbound_messages.empty()) {
+            outbound_messages.pop();
+        }
+    }
+    std::string front_message() {
+        std::lock_guard<std::mutex> lock(client_mutex);
+        if (!outbound_messages.empty()) {
+            std::string message = outbound_messages.front();
+            return message;
+        }
+        return "";
     }
 };
 

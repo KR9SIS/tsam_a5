@@ -39,12 +39,20 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
     stream.push_back(ETX);
 
     // Use the vector's size (host order) as the number of bytes to send
-    ssize_t sent = send(client.fd, stream.data(), stream.size(), 0);
-    if (sent < 0 || static_cast<size_t>(sent) != stream.size()) {
-        write_error("Failed to send stream(" + stream_str + ") to client " +
-                    std::to_string(client.fd));
-        log_message("ERROR", "Failed to send message: " + stream_str);
-        return -1;
+    ssize_t sent;
+    log_message("SENDING", stream_str);
+    while ((sent += send(client.fd, stream.data() + sent, stream.size() - sent,
+                         0)) != stream.size()) {
+        if (sent < 0) {
+            write_error("Failed to send stream(" + stream_str + ") to client " +
+                        std::to_string(client.fd));
+            log_message("ERROR", "Failed to send message: " + stream_str);
+            return -1;
+        } else if (sent != stream.size()) {
+            log_message("SENDING", "Sent " + std::to_string(sent) +
+                                       " bytes of " +
+                                       std::to_string(stream.size()));
+        }
     }
     log_message("SENT", stream_str);
     return 0;
@@ -55,51 +63,56 @@ std::vector<std::string> extract_parameters(const std::string payload) {
 
     size_t delim_pos = payload.find(",");
 
-    if(delim_pos == std::string::npos){
+    if (delim_pos == std::string::npos) {
         return params;
     }
 
     while (true) {
         size_t prev_delim = delim_pos;
         delim_pos = payload.find(",", prev_delim + 1);
-        if(delim_pos == std::string::npos || delim_pos == payload.size() - 1){
+        if (delim_pos == std::string::npos || delim_pos == payload.size() - 1) {
             params.push_back(payload.substr(prev_delim + 1));
             return params;
         }
-        params.push_back(payload.substr(delim_pos + 1, delim_pos - prev_delim - 1));
+        params.push_back(
+            payload.substr(delim_pos + 1, delim_pos - prev_delim - 1));
     }
 
     return params;
 }
 
-///Extracts The Packets From The Given Message
+/// Extracts The Packets From The Given Message
 ///
-///Example:
-///    <SOH><length><STX><message><ETX><SOH><length><STX><message><ETX> 
+/// Example:
+///     <SOH><length><STX><message><ETX><SOH><length><STX><message><ETX>
 ///
-///    => {<SOH><length><STX><message><ETX>,<SOH><length><STX><message><ETX>}
+///     =>
+///     {<SOH><length><STX><message><ETX>,<SOH><length><STX><message><ETX>}
 std::vector<std::string> extract_frames(const std::string &message) {
     std::vector<std::string> packets;
     size_t end_position = message.find(ETX);
-    if(end_position == std::string::npos){
+    if (end_position == std::string::npos) {
         // NOTE: Indicates that it's a partial packet
         return packets;
     }
 
     packets.push_back(message.substr(0, end_position));
-    while(true){
+    while (true) {
         size_t current_pos = end_position;
         end_position = message.find(ETX, end_position);
-        if(end_position == std::string::npos || end_position == message.size() - 1){
+        if (end_position == std::string::npos ||
+            end_position == message.size() - 1) {
             return packets;
         }
-        packets.push_back(message.substr(current_pos, end_position - current_pos));
+        packets.push_back(
+            message.substr(current_pos, end_position - current_pos));
     }
 
     return packets;
 }
 
-std::vector<std::string> extract_payload(const std::vector<std::string> &messages) {
+std::vector<std::string>
+extract_payload(const std::vector<std::string> &messages) {
     std::vector<std::string> payloads;
     for (const std::string &message : messages) {
         size_t STX_pos = message.find(STX);

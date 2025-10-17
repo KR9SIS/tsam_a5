@@ -147,22 +147,23 @@ void handle_client_read(Client &client, Server &serv) {
 
         client.reset_read();
     }
-
-    close(client.fd); // Might have to remove
 }
 
 void handle_client_write(Client &client, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
-
+    // && !client.outbound_messages.empty()
     while (serv.get_server_clients().contains(client.fd)) {
         // NOTE: Wait For Write Event To Be Set
         while ((client.get_event_status() & EPOLLOUT) == 0) {
             std::this_thread::yield();
         }
-        // TODO: MAKE LOGIC FOR SENDING MESSAGES
+        std::string msg = client.front_message();
+        if (msg != "") {
+            if ((send_stream(msg, client)) != -1) {
+                client.pop_message();
+            };
+        }
     }
-
-    close(client.fd); // Might have to remove
 }
 #endif
