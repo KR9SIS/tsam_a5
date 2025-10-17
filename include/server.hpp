@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <functional>
 #include <map>
-#include <memory>
 #include <netinet/in.h>
 #include <string>
 #include <sys/epoll.h>
@@ -21,7 +20,7 @@ constexpr int8_t MAX_CLIENTS = 8;
 constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
-class Server{
+class Server {
     std::map<int64_t, Client> clients;
     std::queue<std::string> message_store;
 
@@ -71,7 +70,7 @@ class Server{
         }
     }
 
-public:
+  public:
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = open_socket(port)) < 0) {
             write_error("Failed to open socket");
@@ -101,7 +100,7 @@ public:
     }
 
     void start() {
-        while(true){
+        while (true) {
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
                                          EPOLL_BLOCK)) < 1) {
@@ -131,7 +130,6 @@ public:
     bool check_for_new_client(int8_t event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
-
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
@@ -164,14 +162,19 @@ public:
             close(client.fd);
             return;
         }
-        
-        dispatch(send_helo,std::ref(clients[client.fd]));// Initial Hello (This Will Exit As Soon As It's Done Sending)
-        // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For Each Event
-        dispatch(handle_client_read, std::ref(clients[client.fd]), std::ref(*this));// Dispatch READ Thread
-        dispatch(handle_client_write, std::ref(clients[client.fd]), std::ref(*this));// Dispatch WRITE Thread
+
+        dispatch(send_helo,
+                 std::ref(clients[client.fd])); // Initial Hello (This Will Exit
+                                                // As Soon As It's Done Sending)
+        // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
+        // Each Event
+        dispatch(handle_client_read, std::ref(clients[client.fd]),
+                 std::ref(*this)); // Dispatch READ Thread
+        dispatch(handle_client_write, std::ref(clients[client.fd]),
+                 std::ref(*this)); // Dispatch WRITE Thread
     }
 
-    void delete_client(Client& client) {
+    void delete_client(Client &client) {
         clients.erase(client.fd);
         close(client.fd);
 
@@ -201,7 +204,7 @@ public:
     }
 
     std::string get_message_for_cnc() {
-        if(message_store.empty()){
+        if (message_store.empty()) {
             return "No Messages!!";
         }
 
