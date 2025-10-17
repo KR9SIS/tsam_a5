@@ -133,9 +133,23 @@ int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
 void message_handler(Client &client, Server &server,
                      const std::string &command) {
     log_message("RESPONSE", client.name + " sent " + command);
+
     if (command.find("SERVER") != std::string::npos) {
         std::vector<std::string> client_conn = extract_parameters(command, ";");
         client.update_connections(client_conn);
+
+        while (server.get_server_clients().size() < server.max_clients) {
+            for (auto &[_, client_conn] : client.connections) {
+                if (server.client_names.find(client_conn.name) !=
+                    server.client_names.end()) {
+                    server.open_client_socket(client_conn.ip, client_conn.port,
+                                              client_conn.name);
+                }
+                if (server.client_names.size() == server.max_clients) {
+                    break;
+                }
+            }
+        }
     }
     if (command.find("GETMSG") != std::string::npos) {
         get_msg(client, server);

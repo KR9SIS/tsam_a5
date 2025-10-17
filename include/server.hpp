@@ -15,6 +15,7 @@
 #include <sys/epoll.h>
 #include <thread>
 #include <unistd.h>
+#include <unordered_set>
 #include <utility>
 
 constexpr uint32_t MAX_MESSAGES =
@@ -76,6 +77,7 @@ class Server {
 
   public:
     uint8_t max_clients = MAX_CLIENTS;
+    std::unordered_set<std::string> client_names;
 
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = server_start_listening(port)) < 0) {
@@ -190,6 +192,7 @@ class Server {
         }
         Client client;
         client.name = name;
+        client.client_num = clients.size();
         socklen_t client_add_len = sizeof(client.addr);
 
         struct sockaddr_in server_addr;
@@ -224,11 +227,13 @@ class Server {
             close(client.fd);
             return -1;
         }
+        client_names.insert(name);
         return client.fd;
     }
     void delete_client(Client &client) {
         clients.erase(client.fd);
         close(client.fd);
+        client_names.erase(client.name);
 
         for (auto it = clients.begin(); it != clients.end(); ++it) {
             if (it->second.client_num >= client.client_num) {
