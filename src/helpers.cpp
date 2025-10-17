@@ -1,5 +1,6 @@
 #include "helpers.h"
 #include "client_logs.hpp"
+#include "serv_client.hpp"
 #include <cstdio>
 #include <string>
 #include <system_error>

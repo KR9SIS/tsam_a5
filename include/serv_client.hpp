@@ -1,6 +1,7 @@
 #ifndef SERVER_CLIENT
 #define SERVER_CLIENT
 
+#include "./helpers.h"
 #include <cstdint>
 #include <map>
 #include <mutex>
@@ -8,6 +9,7 @@
 #include <queue>
 #include <string>
 #include <sys/epoll.h>
+#include <vector>
 
 // WARNING: Not Sure If We Should Use This Or
 // Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No

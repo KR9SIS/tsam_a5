@@ -1,9 +1,10 @@
 #ifndef HELPER_FUNCTIONS
 #define HELPER_FUNCTIONS
 
-#include "serv_client.hpp"
 #include <cstdio>
 #include <string>
+#include <vector>
+class Client;
 
 extern void write_error(std::string msg, FILE *fd = stderr);
 extern int16_t send_stream(const std::string &stream_str, Client &client);

@@ -1,7 +1,8 @@
 #ifndef SERVER_CLASS
 #define SERVER_CLASS
+
+#include "./helpers.h"
 #include "./serv_client.hpp"
-#include "helpers.h"
 #include "operations.hpp"
 #include <cstdint>
 #include <cstdlib>

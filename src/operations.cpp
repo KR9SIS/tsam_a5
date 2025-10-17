@@ -138,8 +138,7 @@ void message_handler(Client &client, Server &server,
                         "OPERATION...");
             return;
         }
-        send_msg(server, std::stoi(parameters[0]), std::stoi(parameters[1]),
-                 parameters[2]);
+        send_msg(server, parameters[0], parameters[1], parameters[2]);
     }
     if (command.find("HELO") != std::string::npos) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
