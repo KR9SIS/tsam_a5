@@ -58,10 +58,11 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
     return 0;
 }
 
-std::vector<std::string> extract_parameters(const std::string payload) {
+std::vector<std::string> extract_parameters(const std::string payload,
+                                            const std::string delimiter) {
     std::vector<std::string> params;
 
-    size_t delim_pos = payload.find(",");
+    size_t delim_pos = payload.find(delimiter);
 
     if (delim_pos == std::string::npos) {
         return params;
@@ -69,7 +70,7 @@ std::vector<std::string> extract_parameters(const std::string payload) {
 
     while (true) {
         size_t prev_delim = delim_pos;
-        delim_pos = payload.find(",", prev_delim + 1);
+        delim_pos = payload.find(delimiter, prev_delim + 1);
         if (delim_pos == std::string::npos || delim_pos == payload.size() - 1) {
             params.push_back(payload.substr(prev_delim + 1));
             return params;

@@ -106,7 +106,7 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group,
         clients.begin()->second.push_message(msg_copy);
     } else {
         std::vector<std::string> recipients =
-            extract_parameters(msg_copy.substr(hops_idx));
+            extract_parameters(msg_copy.substr(hops_idx), ",");
         for (auto &[_, client] : clients) {
             if (std::find(recipients.begin(), recipients.end(), client.name) ==
                 recipients.end()) {
@@ -126,11 +126,13 @@ int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
 void message_handler(Client &client, Server &server,
                      const std::string &command) {
     log_message("RESPONSE", client.name + " sent " + command);
+    if (command.find("SERVER") != std::string::npos) {
+    }
     if (command.find("GETMSG") != std::string::npos) {
         get_msg(client, server);
     }
     if (command.find("SENDMSG") != std::string::npos) {
-        std::vector<std::string> parameters = extract_parameters(command);
+        std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() < 3) {
             write_error("Wrong Number Of Parameters Passed To SENDMSG Aborting "
                         "OPERATION...");
@@ -140,7 +142,7 @@ void message_handler(Client &client, Server &server,
                  parameters[2]);
     }
     if (command.find("HELO") != std::string::npos) {
-        std::vector<std::string> parameters = extract_parameters(command);
+        std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() < 1) {
             write_error("Wrong Number Of Parameters Passed To HELO Aborting "
                         "OPERATION...");
