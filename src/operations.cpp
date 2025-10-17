@@ -5,9 +5,14 @@
 #include "client_logs.hpp"
 #include "helpers.h"
 #include "server.hpp"
+#include <algorithm>
 #include <arpa/inet.h>
+#include <map>
+#include <string>
 #include <sys/epoll.h>
+#include <sys/types.h>
 #include <thread>
+#include <vector>
 
 int16_t send_helo(Client &client) {
     //
@@ -70,16 +75,48 @@ int16_t get_msg(Client &client, Server &server) {
         return -1;
     }
 
-    return send_stream(server.get_message_for_cnc(),
-                       client); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
+    return send_stream(server.get_message_for_cnc(), client);
 }
 
-int16_t send_msg(Server &server, int16_t to_group, int16_t from_group,
+int16_t send_msg(Server &server, std::string to_group, std::string from_group,
                  const std::string &message) {
-    if (to_group == 9) {
-        server.store_message_for_cnc(
-            message); // WARNING: PROBABLY NOT BE THREAD SAFE!!!!
+    if (to_group == "A5_9") {
+        server.store_message_for_cnc(message);
     }
+
+    std::map<int64_t, Client> &clients = server.get_server_clients();
+    for (auto &[_, client] : clients) {
+        if (client.name == to_group) {
+            client.push_message(message);
+            return 0;
+        }
+        for (auto &conn : client.connections) {
+            if (conn == to_group) {
+                client.push_message(message);
+                return 0;
+            }
+        }
+    }
+
+    std::string msg_copy = message;
+    ssize_t hops_idx = msg_copy.find('\x04');
+    if (hops_idx == std::string::npos) {
+        msg_copy.push_back('\x04');
+        msg_copy.append("A5_9");
+        clients.begin()->second.push_message(msg_copy);
+    } else {
+        std::vector<std::string> recipients =
+            extract_parameters(msg_copy.substr(hops_idx));
+        for (auto &[_, client] : clients) {
+            if (std::find(recipients.begin(), recipients.end(), client.name) ==
+                recipients.end()) {
+                msg_copy.append(",A5_9");
+                client.push_message(msg_copy);
+                break;
+            }
+        }
+    }
+
     return 0;
 }
 

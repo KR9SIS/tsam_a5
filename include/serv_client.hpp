@@ -27,13 +27,14 @@ class Client {
     int64_t fd;
     int8_t client_num;
     uint16_t pending_messages;
-    std::vector<std::string> connected;
+    std::vector<std::string> connections;
 
     Client() : name(""), fd(-1), status(ClientState::ACTIVE), events(0) {};
     Client(const Client &other)
         : name(other.name), fd(other.fd), status(other.status),
           events(other.events), addr(other.addr), client_num(other.client_num),
-          connected(other.connected), pending_messages(other.pending_messages),
+          connections(other.connections),
+          pending_messages(other.pending_messages),
           outbound_messages(other.outbound_messages) {}
 
     int get_event_status() {

@@ -21,6 +21,7 @@ constexpr int8_t MAX_EVENTS = 10;
 constexpr int8_t EPOLL_BLOCK = -1;
 
 class Server {
+    std::mutex server_mutex;
     std::map<int64_t, Client> clients;
     std::queue<std::string> message_store;
 
@@ -200,10 +201,12 @@ class Server {
     }
 
     void store_message_for_cnc(const std::string &message) {
+        std::lock_guard<std::mutex> lock(server_mutex);
         message_store.push(message);
     }
 
     std::string get_message_for_cnc() {
+        std::lock_guard<std::mutex> lock(server_mutex);
         if (message_store.empty()) {
             return "No Messages!!";
         }
