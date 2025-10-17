@@ -18,3 +18,4 @@ extern void message_handler(Client &client, Server &server,
                             const std::string &command);
 extern void handle_client_read(Client &client, Server &serv);
 extern void handle_client_write(Client &client, Server &serv);
+extern void send_helos(Server &server);

@@ -102,6 +102,7 @@ class Server {
     }
 
     void start() {
+        dispatch(send_helos, std::ref(*this));
         while (true) {
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,

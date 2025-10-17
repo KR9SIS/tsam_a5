@@ -13,7 +13,14 @@
 #include <sys/types.h>
 #include <thread>
 #include <vector>
-
+void send_helos(Server &server) {
+    while (true) {
+        for (auto &[_, client] : server.get_server_clients()) {
+            send_helo(client);
+        }
+        sleep(120);
+    }
+}
 int16_t send_helo(Client &client) {
     //
     return send_stream("HELO,A5_9", client);
