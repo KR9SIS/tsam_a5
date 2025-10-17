@@ -13,6 +13,57 @@
 #include <sys/types.h>
 #include <thread>
 #include <vector>
+
+int64_t open_client_socket(Server server, std::string ip, int16_t port,
+                           std::string name) {
+    int64_t sock;
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        log_message("ERROR", "Creating socket for client at " + ip + ":" +
+                                 std::to_string(port) + " failed");
+        return -1;
+    }
+    Client client;
+    client.name = name;
+    client.client_num = server.get_server_clients().size();
+    socklen_t client_add_len = sizeof(client.addr);
+
+    struct sockaddr_in server_addr;
+    client.addr.sin_family = AF_INET;
+    client.addr.sin_port = htons(port);
+    if ((inet_pton(AF_INET, ip.c_str(), &client.addr.sin_addr) != 1)) {
+        log_message(
+            "ERROR",
+            "Failed converting ip address to binary form for client at " + ip +
+                ":" + std::to_string(port));
+        return -1;
+    }
+
+    // Connect to server
+    if (connect(sock, (const sockaddr *)&client.addr, sizeof(server_addr)) <
+        0) {
+        log_message("ERROR", "Failed connecting to client at " + ip + ":" +
+                                 std::to_string(port));
+        return -1;
+    }
+
+    server.get_server_clients().insert(
+        std::pair<int64_t, Client>(client.fd, client));
+
+    // Add client socket to epoll
+    event.events = EPOLLIN;
+    event.data.fd = client.fd;
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
+        log_message(
+            "ERROR",
+            "Failed to add client socket to epoll instance for client at " +
+                ip + ":" + std::to_string(port));
+        close(client.fd);
+        return -1;
+    }
+    server.client_names.insert(name);
+    return client.fd;
+}
+
 void send_helos(Server &server) {
     while (true) {
         for (auto &[_, client] : server.get_server_clients()) {

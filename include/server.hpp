@@ -109,6 +109,7 @@ class Server {
 
     void start() {
         dispatch(send_helos, std::ref(*this));
+        dispatch(open_client_socket, "130.208.246.98", 5001, "I_1");
         while (true) {
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
@@ -140,6 +141,18 @@ class Server {
         return poll_events[event_index].data.fd == server_fd;
     }
 
+    uint8_t add_to_epoll(int64_t client_fd) {
+        // Add client socket to epoll
+        event.events = EPOLLIN;
+        event.data.fd = client_fd;
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
+            log_message("ERROR",
+                        "Failed to add client socket to epoll instance");
+            close(client_fd);
+            return -1;
+        }
+        return 0;
+    }
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
         if (clients.size() == MAX_CLIENTS) {
@@ -162,8 +175,11 @@ class Server {
         }
 
         client.client_num = clients.size();
-        clients.insert(std::pair<int64_t, Client>(client.fd, client));
         // Add client socket to epoll
+        if (add_to_epoll(client.fd) != 0) {
+            close(client.fd);
+            return;
+        }
         event.events = EPOLLIN;
         event.data.fd = client.fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
@@ -171,6 +187,8 @@ class Server {
             close(client.fd);
             return;
         }
+        clients.insert(std::pair<int64_t, Client>(client.fd, client));
+        client_names.insert(client.name);
 
         dispatch(send_helo,
                  std::ref(clients[client.fd])); // Initial Hello (This Will Exit
@@ -183,53 +201,6 @@ class Server {
                  std::ref(*this)); // Dispatch WRITE Thread
     }
 
-    int64_t open_client_socket(std::string ip, int16_t port, std::string name) {
-        int64_t sock;
-        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-            log_message("ERROR", "Creating socket for client at " + ip + ":" +
-                                     std::to_string(port) + " failed");
-            return -1;
-        }
-        Client client;
-        client.name = name;
-        client.client_num = clients.size();
-        socklen_t client_add_len = sizeof(client.addr);
-
-        struct sockaddr_in server_addr;
-        client.addr.sin_family = AF_INET;
-        client.addr.sin_port = htons(port);
-        if ((inet_pton(AF_INET, ip.c_str(), &client.addr.sin_addr) != 1)) {
-            log_message(
-                "ERROR",
-                "Failed converting ip address to binary form for client at " +
-                    ip + ":" + std::to_string(port));
-            return -1;
-        }
-
-        // Connect to server
-        if (connect(sock, (const sockaddr *)&client.addr, sizeof(server_addr)) <
-            0) {
-            log_message("ERROR", "Failed connecting to client at " + ip + ":" +
-                                     std::to_string(port));
-            return -1;
-        }
-
-        client.client_num = clients.size();
-        clients.insert(std::pair<int64_t, Client>(client.fd, client));
-        // Add client socket to epoll
-        event.events = EPOLLIN;
-        event.data.fd = client.fd;
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
-            log_message(
-                "ERROR",
-                "Failed to add client socket to epoll instance for client at " +
-                    ip + ":" + std::to_string(port));
-            close(client.fd);
-            return -1;
-        }
-        client_names.insert(name);
-        return client.fd;
-    }
     void delete_client(Client &client) {
         clients.erase(client.fd);
         close(client.fd);

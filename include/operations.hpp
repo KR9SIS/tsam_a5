@@ -1,5 +1,6 @@
 #pragma once
 #include "serv_client.hpp"
+#include <cstdint>
 #include <map>
 
 class Server; // WARNING: FORWARD DECAILRATION, DO NOT REMOVE THIS!!!!!
@@ -19,3 +20,5 @@ extern void message_handler(Client &client, Server &server,
 extern void handle_client_read(Client &client, Server &serv);
 extern void handle_client_write(Client &client, Server &serv);
 extern void send_helos(Server &server);
+extern int64_t open_client_socket(Server server, std::string ip, int16_t port,
+                                  std::string name);
