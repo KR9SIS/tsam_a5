@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <netinet/in.h>
+#include <string>
 #include <unistd.h>
 
 // std::map<int64_t, std::vector<char>> client_messages;
@@ -18,7 +19,8 @@ int main(int argc, char **argv) {
     int16_t port = atoi(argv[1]);
 
     Server server(port);
-    std::cout << "Server started. Listening on port " << port << "\n";
+    log_message("SUCCESS",
+                "Server started. Listening on port: " + std::to_string(port));
 
     server.start();
     return 0;

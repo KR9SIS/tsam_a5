@@ -2,6 +2,7 @@
 #define SERVER_CLIENT
 
 #include "./helpers.h"
+#include "client_logs.hpp"
 #include <cstdint>
 #include <map>
 #include <mutex>
@@ -46,6 +47,7 @@ class Client {
           outbound_messages(other.outbound_messages) {}
 
     void update_connections(std::vector<std::string> conns) {
+        log_message("PROCESSING", "Updating server connections");
         std::lock_guard<std::mutex> lock(client_mutex);
         connections.clear();
         for (std::string conn : conns) {

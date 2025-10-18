@@ -119,6 +119,7 @@ class Server {
                 cleanup();
                 exit(-1);
             }
+            log_message("SERVER", "New events returned");
 
             for (int16_t i = 0; i < num_events; ++i) {
                 if (check_for_new_client(i)) {
