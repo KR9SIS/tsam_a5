@@ -50,13 +50,13 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
                 "PROCESSING",
                 "Wait for epoll. Connect returned EINPROGRESS for client at " +
                     ip + ":" + std::to_string(port));
-            return 0;
+        } else {
+            write_error("Failed connecting to client at " + ip + ":" +
+                        std::to_string(port));
+            log_message("ERROR", "Failed connecting to client at " + ip + ":" +
+                                     std::to_string(port));
+            return -1;
         }
-        write_error("Failed connecting to client at " + ip + ":" +
-                    std::to_string(port));
-        log_message("ERROR", "Failed connecting to client at " + ip + ":" +
-                                 std::to_string(port));
-        return -1;
     }
 
     server.get_server_clients().insert(
