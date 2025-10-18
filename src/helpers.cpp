@@ -28,13 +28,12 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
 
     uint16_t total_len =
         static_cast<uint16_t>(stream_str.size() + frame_overhead);
-    uint16_t net_len = htons(total_len);
 
     std::vector<char> stream;
     stream.reserve(total_len);
     stream.push_back(SOH);
-    stream.push_back(static_cast<char>((net_len >> 8) & 0xFF)); // high byte
-    stream.push_back(static_cast<char>(net_len & 0xFF));        // LOW byte
+    stream.push_back(static_cast<char>((total_len >> 8) & 0xFF)); // high byte
+    stream.push_back(static_cast<char>(total_len & 0xFF));        // LOW byte
     stream.push_back(STX);
     stream.insert(stream.end(), stream_str.begin(), stream_str.end());
     stream.push_back(ETX);
