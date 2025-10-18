@@ -29,7 +29,6 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
     client.client_num = server.get_server_clients().size();
     socklen_t client_add_len = sizeof(client.addr);
 
-    struct sockaddr_in server_addr;
     client.addr.sin_family = AF_INET;
     client.addr.sin_port = htons(port);
     if ((inet_pton(AF_INET, ip.c_str(), &client.addr.sin_addr) != 1)) {
@@ -41,7 +40,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
     }
 
     // Connect to server
-    if (connect(sock, (const sockaddr *)&client.addr, sizeof(server_addr)) <
+    if (connect(sock, (const sockaddr *)&client.addr, sizeof(client.addr)) <
         0) {
         log_message("ERROR", "Failed connecting to client at " + ip + ":" +
                                  std::to_string(port));
