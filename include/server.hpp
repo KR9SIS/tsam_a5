@@ -137,7 +137,15 @@ class Server {
             }
         }
     }
+    /*Grabs The Socket FD For The Socket That Triggered Event At Index
+     * event_index*/
+    int64_t get_event_socket(int event_index) {
+        return poll_events[event_index].data.fd;
+    }
 
+    uint32_t get_event_status(int event_index) {
+        return poll_events[event_index].events;
+    }
     bool check_for_new_client(int8_t event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
@@ -208,12 +216,6 @@ class Server {
         }
     }
 
-    /*Grabs The Socket FD For The Socket That Triggered Event At Index
-     * event_index*/
-    int64_t get_event_socket(int event_index) {
-        return poll_events[event_index].data.fd;
-    }
-
     /*Dispatches a new thread running handler with the supplied arguments*/
     template <typename Func, typename... Args>
     void dispatch(Func &&handler, Args &&...arguments) {
@@ -243,10 +245,6 @@ class Server {
     std::map<int64_t, Client> &get_server_clients() { return clients; }
 
     ~Server() { cleanup(); }
-
-    uint32_t get_event_status(int event_index) {
-        return poll_events[event_index].events;
-    }
 };
 
 #endif
