@@ -64,9 +64,9 @@ void send_helos(Server &server) {
         sleep(120);
     }
 }
-int16_t send_helo(Client &client) {
+void send_helo(Client &client) {
     log_message("PROCESSING", "Sending HELO to " + client.name);
-    return send_stream("HELO,A5_9", client);
+    client.push_message("HELO,A5_9");
 }
 
 int16_t recv_helo(Client &client, Server &server, const std::string &name) {

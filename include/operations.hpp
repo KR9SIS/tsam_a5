@@ -5,7 +5,7 @@
 
 class Server; // WARNING: FORWARD DECAILRATION, DO NOT REMOVE THIS!!!!!
 
-extern int16_t send_helo(Client &client);
+extern void send_helo(Client &client);
 extern int16_t recv_helo(Client &client, Server &server,
                          const std::string &name);
 extern int16_t send_keepalive(std::map<int64_t, Client> &clients);
