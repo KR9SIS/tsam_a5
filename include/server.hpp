@@ -112,17 +112,12 @@ class Server {
         dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5001, "I_1");
         dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5002, "I_2");
         while (true) {
-            // log_message("PROCESSING", "Entering epoll_wait()");
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
                                          EPOLL_BLOCK)) < 0) {
                 write_error("Failed to wait for events");
                 cleanup();
                 exit(-1);
-            }
-            if (num_events > 0) {
-                log_message("SERVER", std::to_string(num_events) +
-                                          " New events returned");
             }
 
             for (int16_t i = 0; i < num_events; ++i) {
