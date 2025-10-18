@@ -243,6 +243,8 @@ void handle_client_read(Client &client, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
 
+    log_message("PROCESSING", "Handling read for " + client.name);
+
     while (serv.get_server_clients().contains(client.fd)) {
         // NOTE: Wait For Read Event To Be Set
         while ((client.get_event_status() & EPOLLIN) == 0) {
@@ -287,6 +289,9 @@ void handle_client_write(Client &client, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
     // && !client.outbound_messages.empty()
+
+    log_message("PROCESSING", "Handling write for " + client.name);
+
     while (serv.get_server_clients().contains(client.fd)) {
         // NOTE: Wait For Write Event To Be Set
         while ((client.get_event_status() & EPOLLOUT) == 0) {
