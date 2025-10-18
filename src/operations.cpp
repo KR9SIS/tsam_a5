@@ -7,9 +7,11 @@
 #include "server.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
+#include <cerrno>
 #include <map>
 #include <string>
 #include <sys/epoll.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <thread>
 #include <vector>
@@ -43,6 +45,15 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
     // Connect to server
     if (connect(sock, (const sockaddr *)&client.addr, sizeof(client.addr)) <
         0) {
+        if (errno == EINPROGRESS) {
+            log_message(
+                "PROCESSING",
+                "Wait for epoll. Connect returned EINPROGRESS for client at " +
+                    ip + ":" + std::to_string(port));
+            return 0;
+        }
+        write_error("Failed connecting to client at " + ip + ":" +
+                    std::to_string(port));
         log_message("ERROR", "Failed connecting to client at " + ip + ":" +
                                  std::to_string(port));
         return -1;
@@ -236,6 +247,14 @@ void handle_client_read(Client &client, Server &serv) {
             std::this_thread::yield();
         }
 
+        int error = 0;
+        socklen_t len = sizeof(error);
+        if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+            write_error("getsockopt threw error for " + client.name);
+            log_message("ERROR", "getsockopt threw error for " + client.name);
+            return;
+        }
+
         int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
         log_message("PROCESSING",
                     "Received " + std::to_string(bytes_read) + " Bytes");
@@ -271,6 +290,15 @@ void handle_client_write(Client &client, Server &serv) {
         while ((client.get_event_status() & EPOLLOUT) == 0) {
             std::this_thread::yield();
         }
+
+        int error = 0;
+        socklen_t len = sizeof(error);
+        if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+            write_error("getsockopt threw error for " + client.name);
+            log_message("ERROR", "getsockopt threw error for " + client.name);
+            return;
+        }
+
         std::string msg = client.front_message();
         if (msg != "") {
             if ((send_stream(msg, client)) != -1) {

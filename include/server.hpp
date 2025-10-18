@@ -109,8 +109,8 @@ class Server {
 
     void start() {
         dispatch(send_helos, std::ref(*this));
-        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001,
-                 "I_1");
+        dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5001, "I_1");
+        dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5002, "I_2");
         while (true) {
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
