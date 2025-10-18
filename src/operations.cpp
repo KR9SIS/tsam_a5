@@ -19,7 +19,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
     log_message("PROCESSING",
                 "Opening client socket " + ip + ":" + std::to_string(port));
     int64_t sock;
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
         log_message("ERROR", "Creating socket for client at " + ip + ":" +
                                  std::to_string(port) + " failed");
         return -1;
@@ -27,6 +27,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
     Client client;
     client.name = name;
     client.client_num = server.get_server_clients().size();
+    client.fd = sock;
     socklen_t client_add_len = sizeof(client.addr);
 
     client.addr.sin_family = AF_INET;
@@ -51,7 +52,15 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
         std::pair<int64_t, Client>(client.fd, client));
 
     server.client_names.insert(name);
-    send_helo(client);
+
+    Client &stored_client = server.get_server_client(client.fd);
+
+    server.dispatch(handle_client_read, std::ref(stored_client),
+                    std::ref(server)); // Dispatch READ Thread
+    server.dispatch(handle_client_write, std::ref(stored_client),
+                    std::ref(server)); // Dispatch WRITE Thread
+    send_helo(stored_client);
+
     return client.fd;
 }
 
