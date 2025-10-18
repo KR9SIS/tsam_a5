@@ -181,13 +181,7 @@ class Server {
             close(client.fd);
             return;
         }
-        event.events = EPOLLIN;
-        event.data.fd = client.fd;
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &event) == -1) {
-            write_error("Failed to add client socket to epoll instance");
-            close(client.fd);
-            return;
-        }
+
         clients.insert(std::pair<int64_t, Client>(client.fd, client));
         client_names.insert(client.name);
 
