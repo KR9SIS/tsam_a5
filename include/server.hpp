@@ -22,7 +22,7 @@ constexpr uint32_t MAX_MESSAGES =
     10000; // NOTE: uint32_t just in case we want to change to something bigger
 constexpr int8_t MAX_CLIENTS = 8;
 constexpr int8_t MAX_EVENTS = 10;
-constexpr int8_t EPOLL_BLOCK = -1;
+constexpr int16_t EPOLL_BLOCK = 5000; // Block epoll for 5 seconds
 
 class Server {
     std::mutex server_mutex;
@@ -98,7 +98,7 @@ class Server {
         }
 
         // Add server socket to epoll
-        event.events = EPOLLIN;
+        event.events = EPOLLIN | EPOLLOUT;
         event.data.fd = server_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) == -1) {
             write_error("Failed to add server socket to epoll instance");
@@ -112,14 +112,18 @@ class Server {
         dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5001, "I_1");
         dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5002, "I_2");
         while (true) {
+            // log_message("PROCESSING", "Entering epoll_wait()");
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
-                                         EPOLL_BLOCK)) < 1) {
+                                         EPOLL_BLOCK)) < 0) {
                 write_error("Failed to wait for events");
                 cleanup();
                 exit(-1);
             }
-            log_message("SERVER", "New events returned");
+            if (num_events > 0) {
+                log_message("SERVER", std::to_string(num_events) +
+                                          " New events returned");
+            }
 
             for (int16_t i = 0; i < num_events; ++i) {
                 if (check_for_new_client(i)) {
@@ -153,7 +157,7 @@ class Server {
 
     uint8_t add_to_epoll(int64_t client_fd) {
         // Add client socket to epoll
-        event.events = EPOLLIN;
+        event.events = EPOLLIN | EPOLLOUT;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
             log_message("ERROR",

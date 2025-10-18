@@ -66,6 +66,8 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port,
 
     Client &stored_client = server.get_server_client(client.fd);
 
+    server.add_to_epoll(client.fd);
+
     server.dispatch(handle_client_read, std::ref(stored_client),
                     std::ref(server)); // Dispatch READ Thread
     server.dispatch(handle_client_write, std::ref(stored_client),
