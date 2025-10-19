@@ -96,21 +96,18 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     if (bytes_received == 0) {
         log_message("CLOSE", "Connection to server has closed\n");
-        exit(0); // Since the connection has been closed
+        return ""; // Since the connection has been closed
     } else if (bytes_received < 0) {
         log_message("TIMEOUT", "Response from server timed out");
         return ""; // So it goes back to the loop
     }
 
     // Unframe the message received from the server
-    return unframe_message(std::string(
-        buffer, bytes_received)); // Cast the char buffer to a string
+    return unframe_message(std::string(buffer, bytes_received)); // Cast the char buffer to a string
 }
 
 void get_msg(int64_t sock_fd) {
-    std::string command =
-        "GETMSG," +
-        GROUP_ID; // Might have to change so it does not include group id
+    std::string command ="GETMSG,A5_9"; // Might have to change so it does not include group id
 
     // Send the command to the server (server command: GETMSG,<GROUP_ID>)
     send_command_to_server(sock_fd, command);
@@ -138,8 +135,8 @@ void send_msg(int64_t sock_fd) {
 
     // Send the command to the server (server command:
     // SENDMSG,<TP_GROUP_ID>,<FROM_GROUP_ID>,<message contents>)
-    std::string command =
-        "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
+    std::string command = "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
+    
     send_command_to_server(sock_fd, command);
 
     // Get the response back from the server
@@ -219,11 +216,11 @@ int main(int argc, char *argv[]) {
 
     std::signal(SIGINT, handle_signal);
     std::signal(SIGTERM, handle_signal);
-    send_command_to_server(sock_fd,"HELO,A5_9");
+    list_servers(sock_fd);
 
 
     // After connect enter a loop to keep connection open and handle commands until user wants to exit
-    while (true) {
+    while (true && sock_fd != -1) {
         // We available commands
         std::cout << "\nAvailable commands:\n" 
         << "(1) GETMSG (Get a message from the server for your group)\n" 
@@ -254,10 +251,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Try to close the socket connection after client quit
+    log_message("INFO", "Closing socket...");
     if (close(sock_fd) < 0) {
         log_message("ERROR", "Close failed");
         exit(0);
     }
+    log_message("CLOSE", "Connection to server has been closed");
 
     return 0;
 }

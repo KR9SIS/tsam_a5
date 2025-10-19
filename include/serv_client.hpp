@@ -11,6 +11,7 @@
 #include <string>
 #include <sys/epoll.h>
 #include <vector>
+#include <iostream>
 
 // WARNING: Not Sure If We Should Use This Or
 // Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No
@@ -48,11 +49,23 @@ class Client {
 
     void update_connections(std::vector<std::string> conns) {
         log_message("PROCESSING", "Updating server connections");
+        
         std::lock_guard<std::mutex> lock(client_mutex);
         connections.clear();
+
+        if (conns.empty()) {
+            return;
+        }
+
         for (std::string conn : conns) {
+            if (conn.empty()) {
+                break;
+            }
             std::vector<std::string> parts = extract_parameters(conn, ",");
-            if (this->name != parts[0]) {
+
+            if (parts.empty()) {
+                break;
+            } else if (this->name != parts[0] && parts.size() >= 3 && parts[1] != "?") {
                 struct conn new_conn;
                 new_conn.name = parts[0];
                 new_conn.ip = parts[1];

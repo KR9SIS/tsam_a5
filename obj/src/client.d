@@ -1,2 +1,2 @@
-obj/src/client.o: src/client.cpp include/../logs/client_logs.hpp
-include/../logs/client_logs.hpp:
+obj/src/client.o: src/client.cpp include/client_logs.hpp
+include/client_logs.hpp:

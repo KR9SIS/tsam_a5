@@ -18,8 +18,7 @@
 #include <unordered_set>
 #include <utility>
 
-constexpr uint32_t MAX_MESSAGES =
-    10000; // NOTE: uint32_t just in case we want to change to something bigger
+constexpr uint32_t MAX_MESSAGES = 10000; // NOTE: uint32_t just in case we want to change to something bigger
 constexpr int8_t MAX_CLIENTS = 8;
 constexpr int8_t MAX_EVENTS = 10;
 constexpr int16_t EPOLL_BLOCK = 5000; // Block epoll for 5 seconds
@@ -33,14 +32,12 @@ class Server {
     epoll_event event, poll_events[MAX_EVENTS];
 
     int64_t server_start_listening(int16_t port) {
-        sockaddr_in sk_addr = {0}; // address settings for bind()
         int64_t sock;              // socket opened for this port
         int set = 1;               // for setsockopt
 
         // Create socket for connection. Set to be non-blocking, so recv will
         // return immediately if there isn't anything waiting to be read.
-        if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) <
-            0) {
+        if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
             write_error("Failed to open socket");
             return -1;
         }
@@ -78,6 +75,7 @@ class Server {
   public:
     uint8_t max_clients = MAX_CLIENTS;
     std::unordered_set<std::string> client_names;
+    sockaddr_in sk_addr = {0}; // address settings for bind()
 
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = server_start_listening(port)) < 0) {
@@ -113,8 +111,7 @@ class Server {
         dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5002, "I_2");
         while (true) {
             int8_t num_events;
-            if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS,
-                                         EPOLL_BLOCK)) < 0) {
+            if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
                 write_error("Failed to wait for events");
                 cleanup();
                 exit(-1);
@@ -155,8 +152,7 @@ class Server {
         event.events = EPOLLIN | EPOLLOUT;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-            log_message("ERROR",
-                        "Failed to add client socket to epoll instance");
+            log_message("ERROR", "Failed to add client socket to epoll instance");
             close(client_fd);
             return -1;
         }
@@ -177,8 +173,7 @@ class Server {
         Client client;
         socklen_t client_add_len = sizeof(client.addr);
 
-        if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr,
-                                &client_add_len)) < 0) {
+        if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr, &client_add_len)) < 0) {
             write_error("Failed to accept client connection");
             return;
         }
@@ -193,15 +188,11 @@ class Server {
         clients.insert(std::pair<int64_t, Client>(client.fd, client));
         client_names.insert(client.name);
 
-        dispatch(send_helo,
-                 std::ref(clients[client.fd])); // Initial Hello (This Will Exit
-                                                // As Soon As It's Done Sending)
+        dispatch(send_helo, std::ref(clients[client.fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
         // Each Event
-        dispatch(handle_client_read, std::ref(clients[client.fd]),
-                 std::ref(*this)); // Dispatch READ Thread
-        dispatch(handle_client_write, std::ref(clients[client.fd]),
-                 std::ref(*this)); // Dispatch WRITE Thread
+        dispatch(handle_client_read, std::ref(clients[client.fd]), std::ref(*this)); // Dispatch READ Thread
+        dispatch(handle_client_write, std::ref(clients[client.fd]), std::ref(*this)); // Dispatch WRITE Thread
     }
 
     void delete_client(Client &client) {
