@@ -76,6 +76,7 @@ class Server {
     uint8_t max_clients = MAX_CLIENTS;
     std::unordered_set<std::string> client_names;
     sockaddr_in sk_addr = {0}; // address settings for bind()
+    std::string name = "A5_9";
 
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = server_start_listening(port)) < 0) {

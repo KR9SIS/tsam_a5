@@ -84,8 +84,8 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     std::string message("SERVERS,");
 
     // Append itself first:
-    message.append("A5_9,");
-    message.append("130.208.246.98").append(","); // WARNING: CHANGE THE HARD CODING!!!!!!!!!!!!!!!!!!
+    message.append(server.name);
+    message.append(inet_ntoa(server.sk_addr.sin_addr)).append(","); 
     message.append(std::to_string(ntohs(server.sk_addr.sin_port))).append(";");
 
     for (auto it = clients.begin(); it != clients.end(); ++it) {
