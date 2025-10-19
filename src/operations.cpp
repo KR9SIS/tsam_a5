@@ -97,9 +97,11 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
             continue;
         }
 
-        message.append(it->second.name).append(",");
-        message.append(inet_ntoa(it->second.addr.sin_addr)).append(",");
-        message.append(std::to_string(ntohs(it->second.addr.sin_port))).append(";");
+        if (it->second.name != "A5_9") {
+            message.append(it->second.name).append(",");
+            message.append(inet_ntoa(it->second.addr.sin_addr)).append(",");
+            message.append(std::to_string(ntohs(it->second.addr.sin_port))).append(";");
+        }
     }
     return send_stream(message, client);
 }

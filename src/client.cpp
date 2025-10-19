@@ -50,8 +50,7 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
     std::string framed_command = frame_message(command);
 
     // Send command to the server through the open socket
-    ssize_t bytes_sent =
-        send(sock_fd, framed_command.c_str(), framed_command.length(), 0);
+    ssize_t bytes_sent = send(sock_fd, framed_command.c_str(), framed_command.length(), 0);
 
     // Check if sending the command to server failed
     if (bytes_sent < 0) {
