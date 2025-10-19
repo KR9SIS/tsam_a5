@@ -152,7 +152,7 @@ class Server {
         event.events = EPOLLIN | EPOLLOUT;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-            log_message("ERROR", "Failed to add client socket to epoll instance");
+            server_log_message("ERROR", "Failed to add client socket to epoll instance");
             close(client_fd);
             return -1;
         }

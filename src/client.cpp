@@ -1,4 +1,3 @@
-#include "client_logs.hpp"
 #include <stdio.h>
 #include <iostream>
 #include <netinet/in.h>
@@ -56,12 +55,12 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
 
     // Check if sending the command to server failed
     if (bytes_sent < 0) {
-        log_message("ERROR", "Error sending the command to the server");
+        client_log_message("ERROR", "Error sending the command to the server");
         exit(1);
     }
 
     std::cout << "\n";
-    log_message("SENT", command);
+    client_log_message("SENT", command);
 }
 
 std::string unframe_message(const std::string &message) {
@@ -88,17 +87,17 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     // Check if respond timeout fails, when setting it
     if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv)) < 0) {
-        log_message("ERROR", "Error setting response timeout");
+        client_log_message("ERROR", "Error setting response timeout");
         exit(1);
     }
 
     ssize_t bytes_received = recv(sock_fd, buffer, MAX_BUFFER_SIZE, 0);
 
     if (bytes_received == 0) {
-        log_message("CLOSE", "Connection to server has closed\n");
+        client_log_message("CLOSE", "Connection to server has closed\n");
         return ""; // Since the connection has been closed
     } else if (bytes_received < 0) {
-        log_message("TIMEOUT", "Response from server timed out");
+        client_log_message("TIMEOUT", "Response from server timed out");
         return ""; // So it goes back to the loop
     }
 
@@ -117,7 +116,7 @@ void get_msg(int64_t sock_fd) {
 
     // Check if the response is empty, and output the response if not
     if (!response.empty()) {
-        log_message("RESPONSE", response);
+        client_log_message("RESPONSE", response);
     }
 }
 
@@ -144,7 +143,7 @@ void send_msg(int64_t sock_fd) {
 
     // Check if the response is empty, and output the response if not
     if (!response.empty()) {
-        log_message("RESPONSE", response);
+        client_log_message("RESPONSE", response);
     }
 }
 
@@ -158,7 +157,7 @@ void list_servers(int64_t sock_fd) {
 
     // Check if the response is empty, and output the response if not
     if (!response.empty()) {
-        log_message("RESPONSE", response);
+        client_log_message("RESPONSE", response);
     }
 }
 
@@ -168,7 +167,7 @@ int64_t set_up_connection(const std::string &ip_string,
     int64_t sock_fd;
 
     if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        log_message("ERROR", "Socket creation failed");
+        client_log_message("ERROR", "Socket creation failed");
         exit(0);
     }
 
@@ -182,17 +181,17 @@ int64_t set_up_connection(const std::string &ip_string,
 
     // Try to set socket address
     if (inet_pton(AF_INET, ip_string.c_str(), &server_addr.sin_addr) != 1) {
-        log_message("INVALID", "Invalid ip address");
+        client_log_message("INVALID", "Invalid ip address");
         exit(0);
     }
 
     // Connect to server
     if (connect(sock_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
-        log_message("ERROR", "Connection failed");
+        client_log_message("ERROR", "Connection failed");
         exit(0);
     }
 
-    log_message("CONNECTED", "Connected to server successfully");
+    client_log_message("CONNECTED", "Connected to server successfully");
     return sock_fd;
 }
 
@@ -201,7 +200,7 @@ int main(int argc, char *argv[]) {
     // arguments Arguments: ./client 130.208.246.98 4009 - execute program,
     // server ip and port nr.
     if (argc != 3) {
-        log_message("INVALID", "Wrong amount of arguments. Should be: ./client <server_ip> <port_nr>");
+        client_log_message("INVALID", "Wrong amount of arguments. Should be: ./client <server_ip> <port_nr>");
         return 1;
     }
 
@@ -217,6 +216,8 @@ int main(int argc, char *argv[]) {
     std::signal(SIGINT, handle_signal);
     std::signal(SIGTERM, handle_signal);
     list_servers(sock_fd);
+
+    new_file("CLIENT");
 
 
     // After connect enter a loop to keep connection open and handle commands until user wants to exit
@@ -237,7 +238,7 @@ int main(int argc, char *argv[]) {
 
         // Handle the command of the user's input
         if (command == "") {
-            log_message("CLOSE", "Connection to server has closed\n");
+            client_log_message("CLOSE", "Connection to server has closed\n");
             break;
         } else if (command == "1") {
             get_msg(sock_fd);
@@ -246,17 +247,17 @@ int main(int argc, char *argv[]) {
         } else if (command == "3") {
             list_servers(sock_fd);
         } else {
-            log_message("INVALID", "Invalid command...");
+            client_log_message("INVALID", "Invalid command...");
         }
     }
 
     // Try to close the socket connection after client quit
-    log_message("INFO", "Closing socket...");
+    client_log_message("INFO", "Closing socket...");
     if (close(sock_fd) < 0) {
-        log_message("ERROR", "Close failed");
+        client_log_message("ERROR", "Close failed");
         exit(0);
     }
-    log_message("CLOSE", "Connection to server has been closed");
+    client_log_message("CLOSE", "Connection to server has been closed");
 
     return 0;
 }

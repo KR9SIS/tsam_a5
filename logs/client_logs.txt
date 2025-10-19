@@ -1,13 +1,21 @@
-[Sat Oct 18 14:18:37 2025] [SUCCESS] Server started. Listening on port: 4009
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Opening client socket 127.0.0.1:5001
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Opening client socket 127.0.0.1:5002
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Wait for epoll. Connect returned EINPROGRESS for client at 127.0.0.1:5001
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Wait for epoll. Connect returned EINPROGRESS for client at 127.0.0.1:5002
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Sending HELO to I_1
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Handling read for I_1
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Handling write for I_1
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Handling read for I_2
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Received 0 Bytes
-[Sat Oct 18 14:18:37 2025] [INFO] Nothing To Read Exiting handle_client
-[Sat Oct 18 14:18:37 2025] [PROCESSING] Handling write for I_2
-[Sat Oct 18 14:18:37 2025] [SENDING] HELO,A5_9
+[Sun Oct 19 01:18:31 2025] [SENT] GETMSG,A5_9
+[Sun Oct 19 01:18:31 2025] [RESPONSE] HELO,A5_9
+[Sun Oct 19 01:18:37 2025] [SENT] HELO,A5_9
+[Sun Oct 19 01:18:37 2025] [RESPONSE] No Messages!!
+[Sun Oct 19 01:18:42 2025] [SENT] HELO,A5_9
+[Sun Oct 19 01:18:42 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,127.0.0.1,5001;I_2,127.0.0.1,5002;A5_9,130.208.240.21,49074;
+[Sun Oct 19 01:19:12 2025] [SENT] SENDMSG,Instr_1,A5_9,Hello
+[Sun Oct 19 01:19:12 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,127.0.0.1,5001;I_2,127.0.0.1,5002;A5_9,130.208.240.21,49074;
+[Sun Oct 19 01:19:16 2025] [SENT] GETMSG,A5_9
+[Sun Oct 19 01:19:16 2025] [RESPONSE] No Messages!!
+[Sun Oct 19 01:19:19 2025] [SENT] HELO,A5_9
+[Sun Oct 19 01:19:20 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,127.0.0.1,5001;I_2,127.0.0.1,5002;A5_9,130.208.240.21,49074;
+[Sun Oct 19 01:19:22 2025] [SENT] GETMSG,A5_9
+[Sun Oct 19 01:19:22 2025] [RESPONSE] No Messages!!
+[Sun Oct 19 01:19:34 2025] [SENT] GETMSG,A5_9
+[Sun Oct 19 01:19:34 2025] [CLOSE] Connection to server has closed
+
+[Sun Oct 19 01:19:38 2025] [CLOSE] Connection to server has closed
+
+[Sun Oct 19 01:19:38 2025] [INFO] Closing socket...
+[Sun Oct 19 01:19:38 2025] [CLOSE] Connection to server has been closed

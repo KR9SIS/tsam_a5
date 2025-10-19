@@ -48,7 +48,7 @@ class Client {
           outbound_messages(other.outbound_messages) {}
 
     void update_connections(std::vector<std::string> conns) {
-        log_message("PROCESSING", "Updating server connections");
+        server_log_message("PROCESSING", "Updating server connections");
         
         std::lock_guard<std::mutex> lock(client_mutex);
         connections.clear();

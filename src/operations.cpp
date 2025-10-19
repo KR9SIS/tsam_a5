@@ -18,10 +18,10 @@
 #include <cstring>
 
 int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::string name) {
-    log_message("PROCESSING", "Opening client socket " + ip + ":" + std::to_string(port));
+    server_log_message("PROCESSING", "Opening client socket " + ip + ":" + std::to_string(port));
     int64_t sock;
     if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
-        log_message("ERROR", "Creating socket for client at " + ip + ":" + std::to_string(port) + " failed");
+        server_log_message("ERROR", "Creating socket for client at " + ip + ":" + std::to_string(port) + " failed");
         return -1;
     }
     Client client;
@@ -34,17 +34,17 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     client.addr.sin_family = AF_INET;
     client.addr.sin_port = htons(port);
     if ((inet_pton(AF_INET, ip.c_str(), &client.addr.sin_addr) != 1)) {
-        log_message("ERROR", "Failed converting ip address to binary form for client at " + ip + ":" + std::to_string(port));
+        server_log_message("ERROR", "Failed converting ip address to binary form for client at " + ip + ":" + std::to_string(port));
         return -1;
     }
 
     // Connect to server
     if (connect(sock, (const sockaddr *)&client.addr, sizeof(client.addr)) < 0) {
         if (errno == EINPROGRESS) {
-            log_message("PROCESSING", "Wait for epoll. Connect returned EINPROGRESS for client at " + ip + ":" + std::to_string(port));
+            server_log_message("PROCESSING", "Wait for epoll. Connect returned EINPROGRESS for client at " + ip + ":" + std::to_string(port));
         } else {
             write_error("Failed connecting to client at " + ip + ":" + std::to_string(port));
-            log_message("ERROR", "Failed connecting to client at " + ip + ":" + std::to_string(port));
+            server_log_message("ERROR", "Failed connecting to client at " + ip + ":" + std::to_string(port));
             return -1;
         }
     }
@@ -183,7 +183,7 @@ int16_t req_status() { return 0; }
 int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
 
 void message_handler(Client &client, Server &server, const std::string &command) {
-    log_message("RESPONSE", client.name + " sent " + command);
+    server_log_message("RESPONSE", client.name + " sent " + command);
 
     if (command.rfind("SERVERS", 0) == 0) {
         std::string rest = command.substr(strlen("SERVERS,"));
@@ -230,7 +230,7 @@ void handle_client_read(Client &client, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
 
-    log_message("PROCESSING", "Handling read for " + client.name);
+    server_log_message("PROCESSING", "Handling read for " + client.name);
 
     while (serv.get_server_clients().contains(client.fd)) {
         // NOTE: Wait For Read Event To Be Set
@@ -242,14 +242,14 @@ void handle_client_read(Client &client, Server &serv) {
         socklen_t len = sizeof(error);
         if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
             write_error("getsockopt threw error for " + client.name);
-            log_message("ERROR", "getsockopt threw error for " + client.name);
+            server_log_message("ERROR", "getsockopt threw error for " + client.name);
             return;
         }
 
         int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
         //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
         if (bytes_read <= 0) {
-            log_message("INFO", "Nothing To Read Exiting handle_client");
+            server_log_message("INFO", "Nothing To Read Exiting handle_client");
             break;
         }
 
@@ -261,7 +261,7 @@ void handle_client_read(Client &client, Server &serv) {
 
         std::vector<std::string> commands = extract_payload(messages);
 
-        log_message("INFO", "Received " + std::to_string(commands.size()) + " Commands");
+        server_log_message("INFO", "Received " + std::to_string(commands.size()) + " Commands");
         // Call message handler on every message
         for (auto it = commands.begin(); it != commands.end(); ++it) {
             message_handler(client, serv, *it);
@@ -276,7 +276,7 @@ void handle_client_write(Client &client, Server &serv) {
     char buffer[5000];
     // && !client.outbound_messages.empty()
 
-    log_message("PROCESSING", "Handling write for " + client.name);
+    server_log_message("PROCESSING", "Handling write for " + client.name);
 
     while (serv.get_server_clients().contains(client.fd)) {
         // NOTE: Wait For Write Event To Be Set
@@ -288,7 +288,7 @@ void handle_client_write(Client &client, Server &serv) {
         socklen_t len = sizeof(error);
         if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
             write_error("getsockopt threw error for " + client.name);
-            log_message("ERROR", "getsockopt threw error for " + client.name);
+            server_log_message("ERROR", "getsockopt threw error for " + client.name);
             return;
         }
 

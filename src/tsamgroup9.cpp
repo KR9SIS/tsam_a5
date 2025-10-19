@@ -16,8 +16,10 @@ int main(int argc, char **argv) {
     }
     int16_t port = atoi(argv[1]);
 
+    new_file("SERVER");
+
     Server server(port);
-    log_message("SUCCESS", "Server started. Listening on port: " + std::to_string(port));
+    server_log_message("SUCCESS", "Server started. Listening on port: " + std::to_string(port));
 
     server.start();
     return 0;
