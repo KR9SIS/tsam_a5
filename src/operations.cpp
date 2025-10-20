@@ -84,8 +84,8 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     std::string message("SERVERS,");
 
     // Append itself first:
-    message.append(server.name);
-    message.append(inet_ntoa(server.sk_addr.sin_addr)).append(","); 
+    message.append(server.name).append(",");
+    message.append("130.208.246.98").append(","); // WARNING: Figure out a way to change this!!
     message.append(std::to_string(ntohs(server.sk_addr.sin_port))).append(";");
 
     for (auto it = clients.begin(); it != clients.end(); ++it) {
@@ -113,8 +113,7 @@ int16_t send_keepalive(std::map<int64_t, Client> &clients) {
                 std::string("KEEPALIVE,")
                     .append(std::to_string(it->second.pending_messages)),
                 it->second) == -1) {
-            write_error(std::string("Failed To Send KEEPALIVE To")
-                            .append(it->second.name));
+            write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
             num_failures += 1;
         }
     }
@@ -226,6 +225,21 @@ void message_handler(Client &client, Server &server, const std::string &command)
         }
         recv_helo(client, server, parameters[1]); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
     }
+    if (command.rfind("KEEPALIVE", 0) == 0) {
+        std::vector<std::string> parameters = extract_parameters(command, ",");
+
+        if (parameters.size() == 2 && !parameters[1].empty() && std::all_of(parameters[1].begin(), parameters[1].end(), ::isdigit)) {
+
+            uint16_t num_messages = static_cast<uint16_t>(std::stoi(parameters[1]));
+            recieve_keepalive(client, num_messages);
+
+            server_log_message("INFO", "Received KEEPALIVE from " + client.name + " with " + std::to_string(num_messages) + " messages");
+        } else {
+            server_log_message("ERROR", "Malformed KEEPALIVE from " + client.name + ": " + command);
+        }
+    }
+
+
 }
 
 void handle_client_read(Client &client, Server &serv) {

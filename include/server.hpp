@@ -133,6 +133,13 @@ class Server {
                     }
                 }
             }
+            static time_t lastKeepAlive = 0;
+            time_t now = time(nullptr);
+
+            if (difftime(now, lastKeepAlive) >= 60) {  // Send KEEPALIVE to servers (clients of this server) every minute
+                send_keepalive(clients);
+                lastKeepAlive = now;
+            }
         }
     }
     /*Grabs The Socket FD For The Socket That Triggered Event At Index
