@@ -155,6 +155,10 @@ class Server {
         return poll_events[event_index].data.fd == server_fd;
     }
 
+    int64_t get_server_socket() const {
+        return server_fd;
+    }
+
     uint8_t add_to_epoll(int64_t client_fd) {
         // Add client socket to epoll
         event.events = EPOLLIN | EPOLLOUT;

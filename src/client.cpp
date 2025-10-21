@@ -81,7 +81,7 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     // Set response timeout
     struct timeval tv;
-    tv.tv_sec = 5;  // 5 second timeout
+    tv.tv_sec = 7;  // 7 second timeout
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
@@ -90,18 +90,28 @@ std::string receive_respons_from_server(int64_t sock_fd) {
         exit(1);
     }
 
-    ssize_t bytes_received = recv(sock_fd, buffer, MAX_BUFFER_SIZE, 0);
+    ssize_t bytes_received = recv(sock_fd, buffer, sizeof(buffer), 0);
 
     if (bytes_received == 0) {
         client_log_message("CLOSE", "Connection to server has closed\n");
         return ""; // Since the connection has been closed
     } else if (bytes_received < 0) {
         client_log_message("TIMEOUT", "Response from server timed out");
-        return ""; // So it goes back to the loop
+        return ""; // So it goes back to the loop   
     }
 
-    // Unframe the message received from the server
-    return unframe_message(std::string(buffer, bytes_received)); // Cast the char buffer to a string
+    // Make sure to have a complete frame and if so unframe it
+    static std::string buffer_accum;
+    buffer_accum.append(buffer, bytes_received);
+
+    size_t soh = buffer_accum.find(SOH);
+    size_t etx = buffer_accum.find(ETX, soh);
+    if (soh != std::string::npos && etx != std::string::npos && etx > soh) {
+        std::string frame = buffer_accum.substr(soh, etx - soh + 1);
+        buffer_accum.erase(0, etx + 1);
+        return unframe_message(frame); // Unframe the message received from the server
+    }
+    return ""; // No complete frame yet
 }
 
 void get_msg(int64_t sock_fd) {

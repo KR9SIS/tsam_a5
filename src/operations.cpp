@@ -78,30 +78,57 @@ void send_helo(Client &client) {
 }
 
 int16_t recv_helo(Client &client, Server &server, const std::string &name) {
-    //log_message("RECV_HELO", name);
+    server_log_message("RECV_HELO", name);
     client.name = name;
     std::map<int64_t, Client> &clients = server.get_server_clients();
     std::string message("SERVERS,");
 
+    // --- Determine server's advertised IP (non-loopback if possible) ---
+    char ip_str[INET_ADDRSTRLEN] = {0};
+
+    if (server.sk_addr.sin_addr.s_addr != INADDR_ANY) {
+        inet_ntop(AF_INET, &(server.sk_addr.sin_addr), ip_str, sizeof(ip_str));
+    } else {
+        int s = socket(AF_INET, SOCK_DGRAM, 0);
+        if (s >= 0) {
+            sockaddr_in dst{};
+            dst.sin_family = AF_INET;
+            dst.sin_port = htons(80);
+            inet_pton(AF_INET, "8.8.8.8", &dst.sin_addr);
+            if (connect(s, (sockaddr*)&dst, sizeof(dst)) == 0) {
+                sockaddr_in local{};
+                socklen_t len = sizeof(local);
+                if (getsockname(s, (sockaddr*)&local, &len) == 0) {
+                    inet_ntop(AF_INET, &(local.sin_addr), ip_str, sizeof(ip_str));
+                }
+            }
+            close(s);
+        }
+    }
+    if (ip_str[0] == '\0') std::snprintf(ip_str, sizeof(ip_str), "127.0.0.1");
+
     // Append itself first:
     message.append(server.name).append(",");
-    message.append("130.208.246.98").append(","); // WARNING: Figure out a way to change this!!
+    message.append(ip_str).append(",");
     message.append(std::to_string(ntohs(server.sk_addr.sin_port))).append(";");
 
-    for (auto it = clients.begin(); it != clients.end(); ++it) {
-        std::string address;
-        if (!inet_ntop(AF_INET, &it->second.addr.sin_addr, address.data(), 15)) {
-            write_error(std::string("IP Address Of Client ")
-                        .append(it->second.name)
-                        .append(" Could Not Be Translated To String"));
+    // --- Append connected servers ---
+    for (auto &[_, c] : clients) {
+        // Skip the client we just received HELO from itself (the C&C connection)
+        if (c.name == server.name) continue;
+
+        if (c.addr.sin_addr.s_addr == 0 || c.addr.sin_port == 0)
+            continue; // skip incomplete entries
+
+        char peer_ip[INET_ADDRSTRLEN];
+        if (!inet_ntop(AF_INET, &(c.addr.sin_addr), peer_ip, sizeof(peer_ip))) {
+            write_error(std::string("inet_ntop failed for client ").append(c.name));
             continue;
         }
 
-        if (it->second.name != "A5_9") {
-            message.append(it->second.name).append(",");
-            message.append(inet_ntoa(it->second.addr.sin_addr)).append(",");
-            message.append(std::to_string(ntohs(it->second.addr.sin_port))).append(";");
-        }
+        message.append(c.name).append(",");
+        message.append(peer_ip).append(",");
+        message.append(std::to_string(ntohs(c.addr.sin_port))).append(";");
     }
     return send_stream(message, client);
 }
@@ -109,15 +136,11 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
 int16_t send_keepalive(std::map<int64_t, Client> &clients) {
     int16_t num_failures = 0;
     for (auto it = clients.begin(); it != clients.end(); ++it) {
-        if (send_stream(
-            std::string("KEEPALIVE,")
-            .append(std::to_string(it->second.pending_messages)),
-            it->second) == -1) {
+        if (send_stream(std::string("KEEPALIVE,").append(std::to_string(it->second.pending_messages)), it->second) == -1) {
             write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
             num_failures += 1;
         }
     }
-
     return num_failures;
 }
 
@@ -207,9 +230,10 @@ void message_handler(Client &client, Server &server, const std::string &command)
 
         if (server.get_server_clients().size() < server.max_clients) {
             for (auto &[_, client_conn] : client.connections) {
-                if (server.client_names.find(client_conn.name) != server.client_names.end()) {
+                if (server.client_names.find(client_conn.name) == server.client_names.end()) {
                     open_client_socket(server, client_conn.ip, client_conn.port, client_conn.name);
                 }
+
                 if (server.client_names.size() == server.max_clients) {
                     break;
                 }
@@ -256,7 +280,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
             server_log_message("ERROR", "Malformed KEEPALIVE from " + client.name + ": " + command);
         }
     }
-    if(command.rfind("STATUSREQ") < 1){
+    if(command.rfind("STATUSREQ", 0) == 0){
         resp_status(server, client);
     }
 }
@@ -287,15 +311,25 @@ void handle_client_read(Client &client, Server &serv) {
         int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
         //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
         if (bytes_read <= 0) {
-            server_log_message("INFO", "Nothing To Read Exiting handle_client");
-            break;
+            if (bytes_read == 0) {
+                server_log_message("INFO", "Client disconnected: " + client.name);
+                close(client.fd);
+                serv.get_server_clients().erase(client.fd);
+            } else {
+
+                server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
+            }
+            return;
         }
 
+        // Append new data into the client's input buffer
+        client.inbuf.append(buffer, bytes_read);
+
         // Unframe
-        std::string message(buffer, static_cast<size_t>(bytes_read));
+        //std::string message(buffer, static_cast<size_t>(bytes_read));
         //log_message("PROCESSING", message);
 
-        std::vector<std::string> messages = extract_frames(message);
+        std::vector<std::string> messages = extract_frames(client.inbuf);
 
         std::vector<std::string> commands = extract_payload(messages);
 
@@ -303,6 +337,11 @@ void handle_client_read(Client &client, Server &serv) {
         // Call message handler on every message
         for (auto it = commands.begin(); it != commands.end(); ++it) {
             message_handler(client, serv, *it);
+        }
+
+        size_t last_etx = client.inbuf.rfind(static_cast<char>(ETX));
+        if (last_etx != std::string::npos) {
+            client.inbuf.erase(0, last_etx + 1);
         }
 
         client.reset_read();

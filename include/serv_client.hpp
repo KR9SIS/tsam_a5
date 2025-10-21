@@ -30,6 +30,7 @@ class Client {
 
   public:
     std::queue<std::string> outbound_messages;
+    std::string inbuf; // Accumulates partial incoming data between recv() calls
     ClientState status;
 
     std::string name;

@@ -5,10 +5,6 @@
 #include <string>
 #include <system_error>
 
-constexpr int8_t SOH = 0x01;
-constexpr int8_t STX = 0x02;
-constexpr int8_t ETX = 0x03;
-
 void write_error(std::string msg, FILE *fd) {
     std::error_code ec(errno, std::system_category());
     fprintf(fd, "MESSAGE: %s\nERROR CODE: %d\nREASON: %s\n", msg.c_str(), ec.value(), ec.message().c_str());
@@ -84,22 +80,22 @@ std::vector<std::string> extract_parameters(const std::string payload, const std
 ///     {<SOH><length><STX><message><ETX>,<SOH><length><STX><message><ETX>}
 std::vector<std::string> extract_frames(const std::string &message) {
     std::vector<std::string> packets;
-    size_t end_position = message.find(ETX);
-    if (end_position == std::string::npos) {
-        // NOTE: Indicates that it's a partial packet
-        return packets;
-    }
+    size_t pos = 0;
 
-    packets.push_back(message.substr(0, end_position));
     while (true) {
-        size_t current_pos = end_position;
-        end_position = message.find(ETX, end_position);
-        if (end_position == std::string::npos || end_position == message.size() - 1) {
-            return packets;
-        }
-        packets.push_back(message.substr(current_pos, end_position - current_pos));
-    }
+        // Find start-of-header and end-of-text
+        size_t soh = message.find(static_cast<char>(SOH), pos);
+        if (soh == std::string::npos) break;
 
+        size_t etx = message.find(static_cast<char>(ETX), soh + 1);
+        if (etx == std::string::npos) break; // partial frame; wait for more
+
+        // Push the complete framed packet [SOH ... ETX]
+        packets.push_back(message.substr(soh, etx - soh + 1));
+
+        // Continue after this frame
+        pos = etx + 1;
+    }
     return packets;
 }
 
@@ -108,7 +104,12 @@ std::vector<std::string> extract_payload(const std::vector<std::string> &message
     for (const std::string &message : messages) {
         size_t STX_pos = message.find(STX);
         size_t ETX_pos = message.find(ETX);
-        payloads.push_back(message.substr(STX_pos + 1, ETX_pos - STX_pos - 2));
+
+        if (STX_pos == std::string::npos || ETX_pos == std::string::npos || STX_pos + 1 > ETX_pos) {
+            continue; // malformed/partial; skip
+        }
+
+        payloads.push_back(message.substr(STX_pos + 1, ETX_pos - STX_pos - 1));
     }
 
     return payloads;
