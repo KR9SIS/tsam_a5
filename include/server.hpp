@@ -196,6 +196,7 @@ class Server {
         clients.insert(std::pair<int64_t, Client>(client.fd, client));
         client_names.insert(client.name);
 
+        server_log_message("ACCEPT","Registering New Client: " + client.name);
         dispatch(send_helo, std::ref(clients[client.fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
         // Each Event

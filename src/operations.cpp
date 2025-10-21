@@ -92,8 +92,8 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
         std::string address;
         if (!inet_ntop(AF_INET, &it->second.addr.sin_addr, address.data(), 15)) {
             write_error(std::string("IP Address Of Client ")
-                            .append(it->second.name)
-                            .append(" Could Not Be Translated To String"));
+                        .append(it->second.name)
+                        .append(" Could Not Be Translated To String"));
             continue;
         }
 
@@ -110,9 +110,9 @@ int16_t send_keepalive(std::map<int64_t, Client> &clients) {
     int16_t num_failures = 0;
     for (auto it = clients.begin(); it != clients.end(); ++it) {
         if (send_stream(
-                std::string("KEEPALIVE,")
-                    .append(std::to_string(it->second.pending_messages)),
-                it->second) == -1) {
+            std::string("KEEPALIVE,")
+            .append(std::to_string(it->second.pending_messages)),
+            it->second) == -1) {
             write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
             num_failures += 1;
         }
@@ -139,6 +139,7 @@ int16_t get_msg(Client &client, Server &server) {
 
     return send_stream(server.get_message_for_cnc(), client);
 }
+
 
 int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message) {
     if (to_group == "A5_9") {
@@ -180,15 +181,26 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
 }
 
 // WARNING: IMPLEMENT
-int16_t req_status() { return 0; }
-int16_t resp_status(std::map<int64_t, Client> &clients) { return 0; }
+int16_t req_status(Client& client) { 
+    return send_stream("STATUSREQ", client); // NOTE: We Should Monitor For Changes To This
+}
+
+int16_t resp_status(Server& server, Client& client) {
+    std::map<long, Client> clients = server.get_server_clients();
+    std::string resp("STATUSRESP,");
+    for(auto& client : clients){
+        if(client.second.name == "A5_9"){continue;}
+        resp.append(client.second.name).append(",").append(std::to_string(client.second.pending_messages));
+    }
+    return send_stream(resp, client);
+}
 
 void message_handler(Client &client, Server &server, const std::string &command) {
     server_log_message("RESPONSE", client.name + " sent " + command);
 
     if (command.rfind("SERVERS", 0) == 0) {
         std::string rest = command.substr(strlen("SERVERS,"));
-        
+
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
 
         client.update_connections(client_conn);
@@ -204,6 +216,12 @@ void message_handler(Client &client, Server &server, const std::string &command)
             }
         }
     }
+
+    if(command.rfind("GETMSGS", 0) == 0){
+        server_log_message("[NOT SUPPORTED]","OPERATION GETMSGS,<group_id> CALLED, SERVER IS SET TO FORWARD MESSAGES");
+        return;
+    }
+
     if (command.rfind("GETMSG", 0) == 0) {
         get_msg(client, server);
     }
@@ -238,8 +256,9 @@ void message_handler(Client &client, Server &server, const std::string &command)
             server_log_message("ERROR", "Malformed KEEPALIVE from " + client.name + ": " + command);
         }
     }
-
-
+    if(command.rfind("STATUSREQ") < 1){
+        resp_status(server, client);
+    }
 }
 
 void handle_client_read(Client &client, Server &serv) {
