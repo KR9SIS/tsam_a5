@@ -14,7 +14,7 @@
 
 ## Build
 
-Requires Linux / macOS with g++ (C++23).
+Requires Linux with g++ (C++23). This code was developed using Arch Linux and Ubuntu
 
 ```bash
 # Builds both at the same time
@@ -31,6 +31,8 @@ make clean
 ```
 
 ## Executing the Server and Client
+
+Go to the bin directory and then run the following commands
 
 To execute the server
 

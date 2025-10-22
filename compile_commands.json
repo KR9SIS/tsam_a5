@@ -1,0 +1,30 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-I",
+      "./include/",
+      "-o",
+      "bin/client",
+      "src/client.cpp"
+    ],
+    "directory": "/home/Frillion/Projects/University/T-409-TSAM/tsam_a5",
+    "file": "/home/Frillion/Projects/University/T-409-TSAM/tsam_a5/src/client.cpp",
+    "output": "/home/Frillion/Projects/University/T-409-TSAM/tsam_a5/bin/client"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-I",
+      "./include/",
+      "-o",
+      "bin/client",
+      "src/helpers.cpp"
+    ],
+    "directory": "/home/Frillion/Projects/University/T-409-TSAM/tsam_a5",
+    "file": "/home/Frillion/Projects/University/T-409-TSAM/tsam_a5/src/helpers.cpp",
+    "output": "/home/Frillion/Projects/University/T-409-TSAM/tsam_a5/bin/client"
+  }
+]
