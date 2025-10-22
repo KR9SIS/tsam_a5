@@ -2,6 +2,7 @@
 #include "serv_client.hpp"
 #include <cstdint>
 #include <map>
+#include <memory>
 
 class Server; // WARNING: FORWARD DECAILRATION, DO NOT REMOVE THIS!!!!!
 
@@ -20,3 +21,4 @@ extern void handle_client_write(Client &client, Server &serv);
 extern void send_helos(Server &server);
 extern void send_statusreqs(Server &server);
 extern int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::string name);
+extern void client_worker(Server&, std::shared_ptr<Client>);

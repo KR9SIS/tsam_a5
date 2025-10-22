@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/epoll.h>
@@ -26,7 +28,7 @@ constexpr int16_t EPOLL_BLOCK = 5000; // Block epoll for 5 seconds
 
 class Server {
     std::mutex server_mutex;
-    std::map<int64_t, Client> clients;
+    std::map<int64_t, std::shared_ptr<Client>> clients;
     std::queue<std::string> message_store;
 
     int64_t server_fd, epoll_fd;
@@ -97,7 +99,7 @@ class Server {
         }
 
         // Add server socket to epoll
-        event.events = EPOLLIN | EPOLLOUT;
+        event.events = EPOLLIN | EPOLLHUP | EPOLLERR;
         event.data.fd = server_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) == -1) {
             write_error("Failed to add server socket to epoll instance");
@@ -122,15 +124,41 @@ class Server {
                 if (check_for_new_client(i)) {
                     register_client();
                 } else {
+                    int64_t fd = get_event_socket(i);
+                    uint32_t events = get_event_status(i);
+
+                    if(get_event_status(i) & EPOLLERR){
+                        int error = 0;
+                        socklen_t len = sizeof(error);
+                        getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
+                        server_log_message("ERROR","Error On Socket " + get_server_client(fd)->name + "Error Code: " + std::to_string(error));
+
+                        get_server_client(fd)->close_con();
+                        std::lock_guard<std::mutex> lk(server_mutex);
+                        clients.erase(fd);
+                        continue;
+                    }
+
+                    if(get_event_status(i) & EPOLLHUP){
+                        server_log_message("INFO","Client " + get_server_client(fd)->name + "Hung Its Connection.");
+                        get_server_client(fd)->close_con();
+                        std::lock_guard<std::mutex> lk(server_mutex);
+                        clients.erase(fd);
+                        continue;
+                    }
+
+                    uint32_t new_events = 0;
                     // If EPOLLIN is set, it's ready to read
-                    if ((get_event_status(i) & EPOLLIN) != 0) {
-                        get_server_client(get_event_socket(i)).set_read();
+                    if (get_event_status(i) & EPOLLIN) {
+                        new_events |= EPOLLIN;
                     }
 
                     // If EPOLLOUT is set, it's ready to write
-                    if ((get_event_status(i) & EPOLLOUT) != 0) {
-                        get_server_client(get_event_socket(i)).set_write();
+                    if (get_event_status(i) & EPOLLOUT) {
+                        new_events |= EPOLLOUT;
                     }
+
+                    get_server_client(fd)->notify(new_events);
                 }
             }
 
@@ -147,8 +175,8 @@ class Server {
 
                 if (difftime(now, lastKeepAlive) >= interval) {
                     auto it = std::next(client_map.begin(), keepalive_index % client_map.size());
-                    if (it->second.fd >= 0) {
-                        send_keepalive_helper(it->second);
+                    if (it->second->fd >= 0) {
+                        send_keepalive_helper(*it->second);
                     }
                     keepalive_index++;
                     lastKeepAlive = now;
@@ -156,6 +184,7 @@ class Server {
             }
         }
     }
+
     /*Grabs The Socket FD For The Socket That Triggered Event At Index
      * event_index*/
     int64_t get_event_socket(int event_index) {
@@ -165,6 +194,7 @@ class Server {
     uint32_t get_event_status(int event_index) {
         return poll_events[event_index].events;
     }
+
     bool check_for_new_client(int8_t event_index) {
         return poll_events[event_index].data.fd == server_fd;
     }
@@ -175,7 +205,7 @@ class Server {
 
     uint8_t add_to_epoll(int64_t client_fd) {
         // Add client socket to epoll
-        event.events = EPOLLIN | EPOLLOUT;
+        event.events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
             server_log_message("ERROR", "Failed to add client socket to epoll instance");
@@ -184,64 +214,65 @@ class Server {
         }
         return 0;
     }
+
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
         if (clients.size() == MAX_CLIENTS) {
             for (auto it = clients.begin(); it != clients.end(); ++it) {
                 // Deletes oldest client
-                if (it->second.client_num == 1) {
-                    delete_client(it->second);
+                if (it->second->client_num == 1) {
+                    delete_client(*it->second);
                     break;
                 }
             }
         }
         // Accept new client connection
-        Client client;
-        socklen_t client_add_len = sizeof(client.addr);
+        std::shared_ptr<Client> client = std::make_shared<Client>();
+        socklen_t client_add_len = sizeof(client->addr);
 
-        if (is_blocked(client.name)) {
-            server_log_message("INFO", "The client " + client.name + " is blocked!");
+        if (is_blocked(client->name)) {
+            server_log_message("INFO", "The client " + client->name + " is blocked!");
             return;
         }
 
-        if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr, &client_add_len)) < 0) {
+        if ((client->fd = accept(server_fd, (struct sockaddr *)&client->addr, &client_add_len)) < 0) {
             write_error("Failed to accept client connection");
             return;
         }
 
-        client.client_num = clients.size();
+        client->client_num = clients.size();
         // Add client socket to epoll
-        if (add_to_epoll(client.fd) != 0) {
-            close(client.fd);
+        if (add_to_epoll(client->fd) != 0) {
+            close(client->fd);
             return;
         }
 
-        clients.insert(std::pair<int64_t, Client>(client.fd, client));
-        client_names.insert(client.name);
+        clients.insert(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
+        client_names.insert(client->name);
 
-        server_log_message("ACCEPT","Registering New Client: " + client.name);
-        dispatch(send_helo, std::ref(clients[client.fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
+        server_log_message("ACCEPT","Registering New Client: " + client->name);
+        dispatch(send_helo, std::ref(*clients[client->fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
         // Each Event
-        dispatch(handle_client_read, std::ref(clients[client.fd]), std::ref(*this)); // Dispatch READ Thread
-        dispatch(handle_client_write, std::ref(clients[client.fd]), std::ref(*this)); // Dispatch WRITE Thread
+        dispatch(client_worker,std::ref(*this), client);
     }
 
     void delete_client(Client &client) {
+        client.close_con();
+        std::lock_guard<std::mutex> lk(server_mutex);
         clients.erase(client.fd);
-        close(client.fd);
         client_names.erase(client.name);
 
         for (auto it = clients.begin(); it != clients.end(); ++it) {
-            if (it->second.client_num >= client.client_num) {
-                it->second.client_num--;
+            if (it->second->client_num >= client.client_num) {
+                it->second->client_num--;
             }
         }
     }
 
     /*Dispatches a new thread running handler with the supplied arguments*/
     template <typename Func, typename... Args>
-    void dispatch(Func &&handler, Args &&...arguments) {
+    void dispatch(Func&& handler, Args&&... arguments) {
         std::thread client_thread(std::forward<Func>(handler),
                                   std::forward<Args>(arguments)...);
         client_thread.detach();
@@ -263,9 +294,9 @@ class Server {
         return message;
     }
 
-    Client &get_server_client(int64_t client_fd) { return clients[client_fd]; }
+    std::shared_ptr<Client>& get_server_client(int64_t client_fd) { return clients[client_fd]; }
 
-    std::map<int64_t, Client> &get_server_clients() { return clients; }
+    std::map<int64_t, std::shared_ptr<Client>>& get_server_clients() { return clients; }
 
     ~Server() { cleanup(); }
 };

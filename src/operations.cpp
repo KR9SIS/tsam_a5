@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <cerrno>
 #include <map>
+#include <memory>
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -24,22 +25,22 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         server_log_message("ERROR", "Creating socket for client at " + ip + ":" + std::to_string(port) + " failed");
         return -1;
     }
-    Client client;
-    client.name = name;
+    std::shared_ptr<Client> client = std::make_shared<Client>();
+    client->name = name;
     //client.ip = ip;
-    client.client_num = server.get_server_clients().size();
-    client.fd = sock;
-    socklen_t client_add_len = sizeof(client.addr);
+    client->client_num = server.get_server_clients().size();
+    client->fd = sock;
+    socklen_t client_add_len = sizeof(client->addr);
 
-    client.addr.sin_family = AF_INET;
-    client.addr.sin_port = htons(port);
-    if ((inet_pton(AF_INET, ip.c_str(), &client.addr.sin_addr) != 1)) {
+    client->addr.sin_family = AF_INET;
+    client->addr.sin_port = htons(port);
+    if ((inet_pton(AF_INET, ip.c_str(), &client->addr.sin_addr) != 1)) {
         server_log_message("ERROR", "Failed converting ip address to binary form for client at " + ip + ":" + std::to_string(port));
         return -1;
     }
 
     // Connect to server
-    if (connect(sock, (const sockaddr *)&client.addr, sizeof(client.addr)) < 0) {
+    if (connect(sock, (const sockaddr *)&client->addr, sizeof(client->addr)) < 0) {
         if (errno == EINPROGRESS) {
             server_log_message("PROCESSING", "Wait for epoll. Connect returned EINPROGRESS for client at " + ip + ":" + std::to_string(port));
         } else {
@@ -49,25 +50,24 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         }
     }
 
-    server.get_server_clients().insert(std::pair<int64_t, Client>(client.fd, client));
+    server.get_server_clients().insert(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
 
     server.client_names.insert(name);
 
-    Client &stored_client = server.get_server_client(client.fd);
+    std::shared_ptr<Client> stored_client = server.get_server_client(client->fd);
 
-    server.add_to_epoll(client.fd);
+    server.add_to_epoll(client->fd);
 
-    server.dispatch(handle_client_read, std::ref(stored_client), std::ref(server)); // Dispatch READ Thread
-    server.dispatch(handle_client_write, std::ref(stored_client), std::ref(server)); // Dispatch WRITE Thread
-    send_helo(stored_client);
+    server.dispatch(client_worker, std::ref(server), stored_client); // Dispatch READ Thread
+    send_helo(*stored_client);
 
-    return client.fd;
+    return client->fd;
 }
 
 void send_helos(Server &server) {
     while (true) {
         for (auto &[_, client] : server.get_server_clients()) {
-            send_helo(client);
+            send_helo(*client);
         }
         sleep(120);
     }
@@ -76,7 +76,7 @@ void send_helos(Server &server) {
 void send_statusreqs(Server &server) {
     while (true) {
         for (auto &[_, client] : server.get_server_clients()) {
-            req_status(client);
+            req_status(*client);
         }
         sleep(200);
     }
@@ -90,7 +90,7 @@ void send_helo(Client &client) {
 int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     server_log_message("RECV_HELO", name);
     client.name = name;
-    std::map<int64_t, Client> &clients = server.get_server_clients();
+    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
     std::string message("SERVERS,");
 
     // Determine IP of itself
@@ -125,20 +125,20 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     // Connected servers:
     for (auto &[_, c] : clients) {
         // Skip the client we just received HELO from itself (the C&C connection)
-        if (c.name == server.name) continue;
+        if (c->name == server.name) continue;
 
-        if (c.addr.sin_addr.s_addr == 0 || c.addr.sin_port == 0)
+        if (c->addr.sin_addr.s_addr == 0 || c->addr.sin_port == 0)
             continue; // skip incomplete entries
 
         char peer_ip[INET_ADDRSTRLEN];
-        if (!inet_ntop(AF_INET, &(c.addr.sin_addr), peer_ip, sizeof(peer_ip))) {
-            write_error(std::string("inet_ntop failed for client ").append(c.name));
+        if (!inet_ntop(AF_INET, &(c->addr.sin_addr), peer_ip, sizeof(peer_ip))) {
+            write_error(std::string("inet_ntop failed for client ").append(c->name));
             continue;
         }
 
-        message.append(c.name).append(",");
+        message.append(c->name).append(",");
         message.append(peer_ip).append(",");
-        message.append(std::to_string(ntohs(c.addr.sin_port))).append(";");
+        message.append(std::to_string(ntohs(c->addr.sin_port))).append(";");
     }
     return send_stream(message, client);
 }
@@ -187,15 +187,15 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
         server.store_message_for_cnc(message);
     }
 
-    std::map<int64_t, Client> &clients = server.get_server_clients();
+    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
     for (auto &[_, client] : clients) {
-        if (client.name == to_group) {
-            client.push_message(message);
+        if (client->name == to_group) {
+            client->push_message(message);
             return 0;
         }
-        for (auto &[_, conn] : client.connections) {
+        for (auto &[_, conn] : client->connections) {
             if (conn.name == to_group) {
-                client.push_message(message);
+                client->push_message(message);
                 return 0;
             }
         }
@@ -206,13 +206,13 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
     if (hops_idx == std::string::npos) {
         msg_copy.push_back('\x04');
         msg_copy.append("A5_9");
-        clients.begin()->second.push_message(msg_copy);
+        clients.begin()->second->push_message(msg_copy);
     } else {
         std::vector<std::string> recipients = extract_parameters(msg_copy.substr(hops_idx), ",");
         for (auto &[_, client] : clients) {
-            if (std::find(recipients.begin(), recipients.end(), client.name) == recipients.end()) {
+            if (std::find(recipients.begin(), recipients.end(), client->name) == recipients.end()) {
                 msg_copy.append(",A5_9");
-                client.push_message(msg_copy);
+                client->push_message(msg_copy);
                 break;
             }
         }
@@ -227,10 +227,10 @@ int16_t req_status(Client& client) {
 }
 
 int16_t resp_status(Server& server, Client& client) {
-    std::map<long, Client> clients = server.get_server_clients();
+    std::map<long, std::shared_ptr<Client>> clients = server.get_server_clients();
     std::string resp("STATUSRESP,");
     for(auto client = clients.begin(); client != clients.end(); ++client){
-        resp.append(client->second.name).append(",").append(std::to_string(client->second.pending_messages)).append(",");
+        resp.append(client->second->name).append(",").append(std::to_string(client->second->pending_messages)).append(",");
     }
     resp.append(client.name).append(",").append(std::to_string(client.pending_messages));
 
@@ -315,68 +315,56 @@ void handle_client_read(Client &client, Server &serv) {
 
     server_log_message("PROCESSING", "Handling read for " + client.name);
 
-    while (true) {
-        // NOTE: Wait For Read Event To Be Set
-        while ((client.get_event_status() & EPOLLIN) == 0) {
-            std::this_thread::yield();
-            if (!serv.get_server_clients().contains(client.fd)){
-                return; // NOTE: Client has been deleted from server
-            }
-        }
+    if (!serv.get_server_clients().contains(client.fd)) {
+        return; // socket was closed elsewhere
+    }
+    if (client.fd < 0) {
+        return; // invalid file descriptor
+    }
 
-        if (!serv.get_server_clients().contains(client.fd)) {
-            return; // socket was closed elsewhere
-        }
-        if (client.fd < 0) {
-            return; // invalid file descriptor
-        }
+    int error = 0;
+    socklen_t len = sizeof(error);
+    if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+        write_error("getsockopt threw error for " + client.name);
+        server_log_message("ERROR", "getsockopt threw error for " + client.name);
+        return;
+    }
 
-        int error = 0;
-        socklen_t len = sizeof(error);
-        if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-            write_error("getsockopt threw error for " + client.name);
-            server_log_message("ERROR", "getsockopt threw error for " + client.name);
+    int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
+    //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
+    if (bytes_read <= 0) {
+        if (bytes_read == 0) {
+            server_log_message("INFO", "Client disconnected: " + client.name);
+            close(client.fd);
+            client.fd = -1;
+            serv.get_server_clients().erase(client.fd);
+            return;
+        } else {
+            server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
             return;
         }
+    }
 
-        int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
-        //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
-        if (bytes_read <= 0) {
-            if (bytes_read == 0) {
-                server_log_message("INFO", "Client disconnected: " + client.name);
-                close(client.fd);
-                client.fd = -1;
-                serv.get_server_clients().erase(client.fd);
-                return;
-            } else {
-                server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
-                return;
-            }
-        }
+    // Append new data into the client's input buffer
+    client.inbuf.append(buffer, bytes_read);
 
-        // Append new data into the client's input buffer
-        client.inbuf.append(buffer, bytes_read);
+    // Unframe
+    //std::string message(buffer, static_cast<size_t>(bytes_read));
+    //log_message("PROCESSING", message);
 
-        // Unframe
-        //std::string message(buffer, static_cast<size_t>(bytes_read));
-        //log_message("PROCESSING", message);
+    std::vector<std::string> messages = extract_frames(client.inbuf);
 
-        std::vector<std::string> messages = extract_frames(client.inbuf);
+    std::vector<std::string> commands = extract_payload(messages);
 
-        std::vector<std::string> commands = extract_payload(messages);
+    server_log_message("INFO", "Received " + std::to_string(commands.size()) + " Commands");
+    // Call message handler on every message
+    for (auto it = commands.begin(); it != commands.end(); ++it) {
+        message_handler(client, serv, *it);
+    }
 
-        server_log_message("INFO", "Received " + std::to_string(commands.size()) + " Commands");
-        // Call message handler on every message
-        for (auto it = commands.begin(); it != commands.end(); ++it) {
-            message_handler(client, serv, *it);
-        }
-
-        size_t last_etx = client.inbuf.rfind(static_cast<char>(ETX));
-        if (last_etx != std::string::npos) {
-            client.inbuf.erase(0, last_etx + 1);
-        }
-
-        client.reset_read();
+    size_t last_etx = client.inbuf.rfind(static_cast<char>(ETX));
+    if (last_etx != std::string::npos) {
+        client.inbuf.erase(0, last_etx + 1);
     }
 }
 
@@ -387,37 +375,46 @@ void handle_client_write(Client &client, Server &serv) {
 
     server_log_message("PROCESSING", "Handling write for " + client.name);
 
-    while (true) {
         // NOTE: Wait For Write Event To Be Set
-        while ((client.get_event_status() & EPOLLOUT) == 0) {
-            std::this_thread::yield();
-            if (!serv.get_server_clients().contains(client.fd)){
-                return; // NOTE: Client has been deleted from server
-            }
+
+    if (!serv.get_server_clients().contains(client.fd)) {
+        return; // socket was closed elsewhere
+    }
+    if (client.fd < 0) {
+        return; // invalid file descriptor
+    }
+
+
+    int error = 0;
+    socklen_t len = sizeof(error);
+    if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+        write_error("getsockopt threw error for " + client.name);
+        server_log_message("ERROR", "getsockopt threw error for " + client.name);
+        return;
+    }
+
+    std::string msg = client.front_message();
+
+    if (msg != "") {
+        if ((send_stream(msg, client)) != -1) {
+            client.pop_message();
+        };
+    }
+}
+
+void client_worker(Server& server, std::shared_ptr<Client> client){
+    while(!client->is_closed()){
+        int32_t events = client->wait_for_events();
+
+        if(events == -1){
+            return; // Connection was closed while waiting so this means we exit thread
         }
 
-        if (!serv.get_server_clients().contains(client.fd)) {
-            return; // socket was closed elsewhere
+        if(events & EPOLLIN){
+            handle_client_read(*client, server);
         }
-        if (client.fd < 0) {
-            return; // invalid file descriptor
-        }
-
-
-        int error = 0;
-        socklen_t len = sizeof(error);
-        if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-            write_error("getsockopt threw error for " + client.name);
-            server_log_message("ERROR", "getsockopt threw error for " + client.name);
-            return;
-        }
-
-        std::string msg = client.front_message();
-
-        if (msg != "") {
-            if ((send_stream(msg, client)) != -1) {
-                client.pop_message();
-            };
+        if(events & EPOLLOUT){
+            handle_client_write(*client, server);
         }
     }
 }

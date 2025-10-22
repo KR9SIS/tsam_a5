@@ -3,6 +3,8 @@
 
 #include "./helpers.h"
 #include "client_logs.hpp"
+#include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <map>
 #include <mutex>
@@ -10,6 +12,7 @@
 #include <queue>
 #include <string>
 #include <sys/epoll.h>
+#include <unistd.h>
 #include <vector>
 #include <iostream>
 
@@ -19,7 +22,9 @@ enum class ClientState { ACTIVE = 0, INACTIVE = 1 };
 
 class Client {
     std::mutex client_mutex;
-    int events;
+    std::atomic<int32_t> events{0};
+    std::condition_variable event_fired;
+    std::atomic<bool> closed;
 
     struct conn {
         std::string name;
@@ -41,12 +46,41 @@ class Client {
     std::map<std::string, conn> connections;
 
     Client() : name(""), fd(-1), status(ClientState::ACTIVE), events(0) {};
-    Client(const Client &other)
-        : name(other.name), fd(other.fd), status(other.status),
-          events(other.events), addr(other.addr), client_num(other.client_num),
-          connections(other.connections),
-          pending_messages(other.pending_messages),
-          outbound_messages(other.outbound_messages) {}
+
+    int32_t wait_for_events(){
+        std::unique_lock<std::mutex> lk(client_mutex);
+        event_fired.wait(lk, [&]{
+            return events.load(std::memory_order_acquire) != 0 
+            || closed.load(std::memory_order_acquire);
+        });
+
+        if(closed.load(std::memory_order_acquire)){
+            return -1;
+        }
+
+        return events.exchange(0,std::memory_order_acq_rel);
+    }
+
+    void notify(int new_events){
+        events.fetch_or(new_events, std::memory_order_release);
+        std::lock_guard<std::mutex> lk(client_mutex);
+        event_fired.notify_one();
+    }
+
+    void close_con(){
+        closed.store(true, std::memory_order_release);
+        if(fd <= 0){
+            close(fd);
+            fd = -1;
+        }
+
+        std::lock_guard<std::mutex> lk(client_mutex);
+        event_fired.notify_one();
+    }
+
+    bool is_closed(){
+        return closed.load(std::memory_order_acquire);
+    }
 
     void update_connections(std::vector<std::string> conns) {
         server_log_message("PROCESSING", "Updating server connections");
@@ -59,14 +93,19 @@ class Client {
         }
 
         for (std::string conn : conns) {
+            if(conn.find("A5_9") != std::string::npos)
+                continue;
+
             if (conn.empty()) {
                 break;
             }
+
             std::vector<std::string> parts = extract_parameters(conn, ",");
 
-            if (parts.empty()) {
+            if (parts.empty())
                 break;
-            } else if (this->name != parts[0] && parts.size() >= 3 && parts[1] != "?") {
+
+            else if (this->name != parts[0] && parts.size() >= 3 && parts[1] != "?") {
                 struct conn new_conn;
                 new_conn.name = parts[0];
                 new_conn.ip = parts[1];
@@ -76,29 +115,8 @@ class Client {
         }
     }
 
-    int get_event_status() {
-        std::lock_guard<std::mutex> lock(client_mutex);
-        return events;
-    }
-
-    void set_read() {
-        std::lock_guard<std::mutex> lock(client_mutex);
-        events |= EPOLLIN;
-    }
-
-    void reset_read() {
-        std::lock_guard<std::mutex> lock(client_mutex);
-        events &= ~EPOLLIN;
-    }
-
-    void set_write() {
-        std::lock_guard<std::mutex> lock(client_mutex);
-        events |= EPOLLOUT;
-    }
-
-    void reset_write() {
-        std::lock_guard<std::mutex> lock(client_mutex);
-        events &= ~EPOLLOUT;
+    std::mutex& get_mutex(){
+        return client_mutex;
     }
 
     void push_message(const std::string &message) {
