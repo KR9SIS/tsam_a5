@@ -44,17 +44,22 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         if (errno == EINPROGRESS) {
             server_log_message("PROCESSING", "Wait for epoll. Connect returned EINPROGRESS for client at " + ip + ":" + std::to_string(port));
         } else {
-            write_error("Failed connecting to client at " + ip + ":" + std::to_string(port));
+            server_log_message("ERROR","Failed connecting to client at " + ip + ":" + std::to_string(port));
             server_log_message("ERROR", "Failed connecting to client at " + ip + ":" + std::to_string(port));
             return -1;
         }
     }
 
-    server.get_server_clients().insert(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
+    server.add_client(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
 
     server.client_names.insert(name);
 
     std::shared_ptr<Client> stored_client = server.get_server_client(client->fd);
+
+    if(stored_client == nullptr){
+        server_log_message("ERROR", "Server Returned A Null Client " + client->name);
+        return -1;
+    }
 
     server.add_to_epoll(client->fd);
 
@@ -250,6 +255,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
         if (server.get_server_clients().size() < server.max_clients) {
             for (auto &[_, client_conn] : client.connections) {
                 if (server.client_names.find(client_conn.name) == server.client_names.end()) {
+                    server_log_message("INFO", "Connecting To Client [IP]: " + client_conn.ip + " [ID]: " + client_conn.name + " [PORT]: " + std::to_string(client_conn.port));
                     open_client_socket(server, client_conn.ip, client_conn.port, client_conn.name);
                 }
 
@@ -263,7 +269,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
     if(command.rfind("GETMSGS", 0) == 0){
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
-            write_error("No Group ID Passed to GETMSGS Aporting Operation...");
+            server_log_message("ERROR","No Group ID Passed to GETMSGS Aporting Operation...");
             return;
         }
 
@@ -276,7 +282,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() <= 3) { // Parameters need to be 4
-            write_error("Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...");
+            server_log_message("ERROR","Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...");
             return;
         }
 
@@ -286,7 +292,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
         std::vector<std::string> parameters = extract_parameters(command, ",");
 
         if (parameters.size() < 1) {
-            write_error("Wrong Number Of Parameters Passed To HELO Aborting OPERATION...");
+            server_log_message("ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...");
             return;
         }
         recv_helo(client, server, parameters[1]); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
@@ -312,9 +318,6 @@ void message_handler(Client &client, Server &server, const std::string &command)
 void handle_client_read(Client &client, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
-
-    server_log_message("PROCESSING", "Handling read for " + client.name);
-
     if (!serv.get_server_clients().contains(client.fd)) {
         return; // socket was closed elsewhere
     }
@@ -325,7 +328,7 @@ void handle_client_read(Client &client, Server &serv) {
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-        write_error("getsockopt threw error for " + client.name);
+        server_log_message("ERROR","getsockopt threw error for " + client.name);
         server_log_message("ERROR", "getsockopt threw error for " + client.name);
         return;
     }
@@ -333,16 +336,8 @@ void handle_client_read(Client &client, Server &serv) {
     int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
     //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
     if (bytes_read <= 0) {
-        if (bytes_read == 0) {
-            server_log_message("INFO", "Client disconnected: " + client.name);
-            close(client.fd);
-            client.fd = -1;
-            serv.get_server_clients().erase(client.fd);
-            return;
-        } else {
-            server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
-            return;
-        }
+        server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
+        return;
     }
 
     // Append new data into the client's input buffer
@@ -373,10 +368,6 @@ void handle_client_write(Client &client, Server &serv) {
     char buffer[5000];
     // && !client.outbound_messages.empty()
 
-    server_log_message("PROCESSING", "Handling write for " + client.name);
-
-        // NOTE: Wait For Write Event To Be Set
-
     if (!serv.get_server_clients().contains(client.fd)) {
         return; // socket was closed elsewhere
     }
@@ -388,7 +379,7 @@ void handle_client_write(Client &client, Server &serv) {
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-        write_error("getsockopt threw error for " + client.name);
+        server_log_message("ERROR","getsockopt threw error for " + client.name);
         server_log_message("ERROR", "getsockopt threw error for " + client.name);
         return;
     }
@@ -414,6 +405,7 @@ void client_worker(Server& server, std::shared_ptr<Client> client){
             handle_client_read(*client, server);
         }
         if(events & EPOLLOUT){
+            // WARNING: Segfault Is Happening Here Most Likely After Close
             handle_client_write(*client, server);
         }
     }

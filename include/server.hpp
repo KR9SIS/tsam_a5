@@ -110,10 +110,10 @@ class Server {
 
     void start() {
         dispatch(send_helos, std::ref(*this));
-        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "I_1");
-        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "I_2");
+        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "Instr_1");
+        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "Instr_2");
         while (true) {
-            int8_t num_events;
+            int16_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
                 write_error("Failed to wait for events");
                 cleanup();
@@ -131,7 +131,7 @@ class Server {
                         int error = 0;
                         socklen_t len = sizeof(error);
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
-                        server_log_message("ERROR","Error On Socket " + get_server_client(fd)->name + "Error Code: " + std::to_string(error));
+                        server_log_message("ERROR","Error On Socket " + get_server_client(fd)->name + " Error Code: " + std::to_string(error));
 
                         get_server_client(fd)->close_con();
                         std::lock_guard<std::mutex> lk(server_mutex);
@@ -247,6 +247,7 @@ class Server {
             return;
         }
 
+        std::lock_guard<std::mutex> lk(server_mutex);
         clients.insert(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
         client_names.insert(client->name);
 
@@ -296,7 +297,17 @@ class Server {
 
     std::shared_ptr<Client>& get_server_client(int64_t client_fd) { return clients[client_fd]; }
 
-    std::map<int64_t, std::shared_ptr<Client>>& get_server_clients() { return clients; }
+    const std::map<int64_t, std::shared_ptr<Client>>& get_server_clients() { return clients; }
+
+    void delete_client(int64_t client_fd){
+        std::lock_guard<std::mutex> lk(server_mutex);
+        clients.erase(client_fd);
+    }
+
+    void add_client(std::pair<int64_t, std::shared_ptr<Client>> new_client){
+        std::lock_guard<std::mutex> lk(server_mutex);
+        clients.insert(new_client);
+    }
 
     ~Server() { cleanup(); }
 };

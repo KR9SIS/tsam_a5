@@ -93,17 +93,20 @@ class Client {
         }
 
         for (std::string conn : conns) {
-            if(conn.find("A5_9") != std::string::npos)
-                continue;
-
+            std::vector<std::string> parts = extract_parameters(conn, ",");
             if (conn.empty()) {
                 break;
             }
 
-            std::vector<std::string> parts = extract_parameters(conn, ",");
 
             if (parts.empty())
                 break;
+
+            if(conn.find("A5_9") != std::string::npos){
+                int16_t port_numb = std::stoi(parts[2]);
+                addr.sin_port = htonl(port_numb);
+                continue;
+            }
 
             else if (this->name != parts[0] && parts.size() >= 3 && parts[1] != "?") {
                 struct conn new_conn;
@@ -130,6 +133,7 @@ class Client {
             outbound_messages.pop();
         }
     }
+
     std::string front_message() {
         std::lock_guard<std::mutex> lock(client_mutex);
         if (!outbound_messages.empty()) {
