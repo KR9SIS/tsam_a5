@@ -23,7 +23,8 @@ SERVER_SOURCES := \
   $(SRCDIR)/tsamgroup9.cpp \
   $(SRCDIR)/helpers.cpp \
   $(SRCDIR)/client_logs.cpp \
-  $(SRCDIR)/operations.cpp
+  $(SRCDIR)/operations.cpp \
+  $(SRCDIR)/block_bots.cpp
 
 # Object files (mirror directory structure under obj/)
 CLIENT_OBJECTS := $(CLIENT_SOURCES:%.cpp=$(OBJDIR)/%.o)

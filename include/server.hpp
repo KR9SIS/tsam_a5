@@ -5,6 +5,7 @@
 #include "./serv_client.hpp"
 #include "client_logs.hpp"
 #include "operations.hpp"
+#include "block_bots.hpp"
 #include <arpa/inet.h>
 #include <cstdint>
 #include <cstdlib>
@@ -42,8 +43,7 @@ class Server {
             return -1;
         }
 
-        // Turn on SO_REUSEADDR to allow socket to be quickly reused after
-        // program exit.
+        // Allow socket to be quickly reused after program exit
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0) {
             write_error("Failed to set SO_REUSEADDR");
         }
@@ -108,8 +108,8 @@ class Server {
 
     void start() {
         dispatch(send_helos, std::ref(*this));
-        dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5001, "I_1");
-        dispatch(open_client_socket, std::ref(*this), "127.0.0.1", 5002, "I_2");
+        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "I_1");
+        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "I_2");
         while (true) {
             int8_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
@@ -133,12 +133,26 @@ class Server {
                     }
                 }
             }
-            static time_t lastKeepAlive = 0;
-            time_t now = time(nullptr);
 
-            if (difftime(now, lastKeepAlive) >= 60) {  // Send KEEPALIVE to servers (clients of this server) every minute
-                send_keepalive(clients);
-                lastKeepAlive = now;
+            // Implementation so every client/server gets one keepalive per minute but distributed evenly through that minute
+            // This is to not overload the server since sending it all at the same time is too much
+            static time_t lastKeepAlive = 0;
+            static size_t keepalive_index = 0;
+
+            time_t now = time(nullptr);
+            auto &client_map = clients;
+
+            if (!client_map.empty()) {
+                double interval = 60.0 / client_map.size(); // To distribute evenly
+
+                if (difftime(now, lastKeepAlive) >= interval) {
+                    auto it = std::next(client_map.begin(), keepalive_index % client_map.size());
+                    if (it->second.fd >= 0) {
+                        send_keepalive_helper(it->second);
+                    }
+                    keepalive_index++;
+                    lastKeepAlive = now;
+                }
             }
         }
     }
@@ -184,6 +198,11 @@ class Server {
         // Accept new client connection
         Client client;
         socklen_t client_add_len = sizeof(client.addr);
+
+        if (is_blocked(client.name)) {
+            server_log_message("INFO", "The client " + client.name + " is blocked!");
+            return;
+        }
 
         if ((client.fd = accept(server_fd, (struct sockaddr *)&client.addr, &client_add_len)) < 0) {
             write_error("Failed to accept client connection");

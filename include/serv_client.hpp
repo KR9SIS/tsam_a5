@@ -14,8 +14,7 @@
 #include <iostream>
 
 // WARNING: Not Sure If We Should Use This Or
-// Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No
-// KeepAlive)
+// Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No KeepAlive)
 enum class ClientState { ACTIVE = 0, INACTIVE = 1 };
 
 class Client {
@@ -29,6 +28,7 @@ class Client {
     };
 
   public:
+    //std::vector<std::string> messages_for_client;
     std::queue<std::string> outbound_messages;
     std::string inbuf; // Accumulates partial incoming data between recv() calls
     ClientState status;

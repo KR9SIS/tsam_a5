@@ -72,6 +72,16 @@ void send_helos(Server &server) {
         sleep(120);
     }
 }
+
+void send_statusreqs(Server &server) {
+    while (true) {
+        for (auto &[_, client] : server.get_server_clients()) {
+            req_status(client);
+        }
+        sleep(200);
+    }
+}
+
 void send_helo(Client &client) {
     //log_message("PROCESSING", "Sending HELO to " + client.name);
     client.push_message("HELO,A5_9");
@@ -83,7 +93,7 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     std::map<int64_t, Client> &clients = server.get_server_clients();
     std::string message("SERVERS,");
 
-    // --- Determine server's advertised IP (non-loopback if possible) ---
+    // Determine IP of itself
     char ip_str[INET_ADDRSTRLEN] = {0};
 
     if (server.sk_addr.sin_addr.s_addr != INADDR_ANY) {
@@ -107,12 +117,12 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     }
     if (ip_str[0] == '\0') std::snprintf(ip_str, sizeof(ip_str), "127.0.0.1");
 
-    // Append itself first:
+    // Append itself
     message.append(server.name).append(",");
     message.append(ip_str).append(",");
     message.append(std::to_string(ntohs(server.sk_addr.sin_port))).append(";");
 
-    // --- Append connected servers ---
+    // Connected servers:
     for (auto &[_, c] : clients) {
         // Skip the client we just received HELO from itself (the C&C connection)
         if (c.name == server.name) continue;
@@ -133,16 +143,24 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
     return send_stream(message, client);
 }
 
-int16_t send_keepalive(std::map<int64_t, Client> &clients) {
-    int16_t num_failures = 0;
-    for (auto it = clients.begin(); it != clients.end(); ++it) {
-        if (send_stream(std::string("KEEPALIVE,").append(std::to_string(it->second.pending_messages)), it->second) == -1) {
-            write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
-            num_failures += 1;
-        }
-    }
-    return num_failures;
+// int16_t send_keepalive(std::map<int64_t, Client> &clients) {
+//     int16_t num_failures = 0;
+//     for (auto it = clients.begin(); it != clients.end(); ++it) {
+//         if (send_stream(std::string("KEEPALIVE,").append(std::to_string(it->second.pending_messages)), it->second) == -1) {
+//             write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
+//             num_failures += 1;
+//         }
+//     }
+//     return num_failures;
+// }
+
+// Does the same thing as keepalive just minimises errors and sends at seperate occations not all at same time
+int16_t send_keepalive_helper(Client &client) {
+    if (client.fd < 0) return -1; // skip closed sockets
+
+    return send_stream(std::string("KEEPALIVE,").append(std::to_string(client.pending_messages)), client);
 }
+
 
 int16_t recieve_keepalive(Client &client, uint16_t num_messages) {
     client.pending_messages = num_messages;
@@ -211,10 +229,11 @@ int16_t req_status(Client& client) {
 int16_t resp_status(Server& server, Client& client) {
     std::map<long, Client> clients = server.get_server_clients();
     std::string resp("STATUSRESP,");
-    for(auto& client : clients){
-        if(client.second.name == "A5_9"){continue;}
-        resp.append(client.second.name).append(",").append(std::to_string(client.second.pending_messages));
+    for(auto client = clients.begin(); client != clients.end(); ++client){
+        resp.append(client->second.name).append(",").append(std::to_string(client->second.pending_messages)).append(",");
     }
+    resp.append(client.name).append(",").append(std::to_string(client.pending_messages));
+
     return send_stream(resp, client);
 }
 
@@ -242,8 +261,13 @@ void message_handler(Client &client, Server &server, const std::string &command)
     }
 
     if(command.rfind("GETMSGS", 0) == 0){
-        server_log_message("[NOT SUPPORTED]","OPERATION GETMSGS,<group_id> CALLED, SERVER IS SET TO FORWARD MESSAGES");
-        return;
+        std::vector<std::string> parameters = extract_parameters(command, ",");
+        if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
+            write_error("No Group ID Passed to GETMSGS Aporting Operation...");
+            return;
+        }
+
+
     }
 
     if (command.rfind("GETMSG", 0) == 0) {
@@ -300,6 +324,13 @@ void handle_client_read(Client &client, Server &serv) {
             }
         }
 
+        if (!serv.get_server_clients().contains(client.fd)) {
+            return; // socket was closed elsewhere
+        }
+        if (client.fd < 0) {
+            return; // invalid file descriptor
+        }
+
         int error = 0;
         socklen_t len = sizeof(error);
         if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
@@ -314,12 +345,13 @@ void handle_client_read(Client &client, Server &serv) {
             if (bytes_read == 0) {
                 server_log_message("INFO", "Client disconnected: " + client.name);
                 close(client.fd);
+                client.fd = -1;
                 serv.get_server_clients().erase(client.fd);
+                return;
             } else {
-
                 server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
+                return;
             }
-            return;
         }
 
         // Append new data into the client's input buffer
@@ -363,6 +395,14 @@ void handle_client_write(Client &client, Server &serv) {
                 return; // NOTE: Client has been deleted from server
             }
         }
+
+        if (!serv.get_server_clients().contains(client.fd)) {
+            return; // socket was closed elsewhere
+        }
+        if (client.fd < 0) {
+            return; // invalid file descriptor
+        }
+
 
         int error = 0;
         socklen_t len = sizeof(error);
