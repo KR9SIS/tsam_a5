@@ -321,7 +321,7 @@ void handle_client_read(int64_t client_fd, Server &serv) {
     }
 
     // Add framing to message and send
-    char buffer[5000];
+    char buffer[6000];
     std::shared_ptr<Client> client = serv.get_server_client(client_fd);
     std::lock_guard<std::mutex> lock(client->client_mutex);
 
