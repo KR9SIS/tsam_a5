@@ -271,9 +271,7 @@ class Server {
             return;
         }
 
-        std::lock_guard<std::mutex> lk(server_mutex);
-        clients.insert(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
-        client_names.insert(client->name);
+        add_client(std::make_pair(client->fd, client));
 
         server_log_message(client->name, "ACCEPT","Registering New Client: " + client->name);
         dispatch(send_helo, std::ref(*clients[client->fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
@@ -333,6 +331,7 @@ class Server {
     void add_client(std::pair<int64_t, std::shared_ptr<Client>> new_client){
         std::lock_guard<std::mutex> lk(server_mutex);
         clients.insert(new_client);
+        client_names.insert(new_client.second->name);
     }
 
     std::mutex& get_mutex(){
