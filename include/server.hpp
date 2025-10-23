@@ -326,7 +326,7 @@ class Server {
 
     std::shared_ptr<Client> get_server_client(int64_t client_fd) { 
         std::lock_guard<std::mutex> lk(server_mutex);
-        return clients[client_fd]; 
+        return clients.find(client_fd)->second; 
     }
 
     std::map<int64_t, std::shared_ptr<Client>> get_server_clients() {
