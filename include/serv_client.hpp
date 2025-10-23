@@ -39,7 +39,7 @@ class Client {
     uint16_t pending_messages;
     std::map<std::string, conn> connections;
 
-    Client() : name(""), fd(-1), events(0) {};
+    Client() : name("new"), fd(-1), events(0) {};
 
     int32_t wait_for_events(){
         std::unique_lock<std::mutex> lk(client_mutex);
