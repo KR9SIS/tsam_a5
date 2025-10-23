@@ -195,11 +195,30 @@ int16_t get_msg(int64_t client_fd, Server &server) {
         return -1;
     }
     if (client->name != "A5_9") {
-        server_log_message(client->name, "ERROR","Client With Insufficient Privileges To GETMSG Made An Attempt", "get_msg");
-        return -1;
+        return send_stream(client->get_message_for_client(), *client);
     }
 
     return send_stream(server.get_message_for_cnc(), *client);
+}
+
+int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_name) {
+    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
+    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+
+    std::string messages;
+    for (auto &[_, cli] : clients) {
+        if (cli->name == group_name) {
+            if (cli->messages_for_client.empty()) {
+                messages.append(group_name).append(" Has no messages...");
+            } else {
+                for (std::string message : cli->messages_for_client) {
+                    message.append(message).append(";");
+                }
+            }
+        }
+    }
+
+    return send_stream(messages, *client);
 }
 
 
@@ -209,15 +228,18 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
         server.store_message_for_cnc(message_with_group);
     }
 
+    std::string message_with_group = "[FROM: " + from_group + "] " + message;
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
     for (auto &[_, client] : clients) {
         if (client->name == to_group) {
             client->push_message(message);
+            client->append_message(message_with_group);
             return 0;
         }
         for (auto &[_, conn] : client->connections) {
             if (conn.name == to_group) {
                 client->push_message(message);
+                client->append_message(message_with_group);
                 return 0;
             }
         }
@@ -301,6 +323,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
             return;
         }
+        get_msgs(client_fd, server, parameters[1]);
     }
     if (command.rfind("GETMSG", 0) == 0) {
         get_msg(client_fd, server);
@@ -428,6 +451,7 @@ void handle_client_write(int64_t client_fd, Server &serv) {
     if (msg != "") {
         if ((send_stream(msg, *client)) != -1) {
             client->pop_message();
+            client->remove_first_message();
         };
     }
 }

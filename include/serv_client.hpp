@@ -28,7 +28,6 @@ class Client {
 
   public:
     std::mutex client_mutex;
-    //std::vector<std::string> messages_for_client;
     std::queue<std::string> outbound_messages;
     std::string inbuf; // Accumulates partial incoming data between recv() calls
 
@@ -38,6 +37,7 @@ class Client {
     int8_t client_num;
     uint16_t pending_messages;
     std::map<std::string, conn> connections;
+    std::vector<std::string> messages_for_client;
 
     Client() : name("new"), fd(-1), events(0) {};
 
@@ -131,6 +131,26 @@ class Client {
             return message;
         }
         return "";
+    }
+
+    void append_message(const std::string &message) {
+        messages_for_client.push_back(message);
+    }
+
+    void remove_first_message() {
+        if (!messages_for_client.empty()) {
+            messages_for_client.erase(messages_for_client.begin());
+        }
+    }
+
+    std::string get_message_for_client() {
+        if (messages_for_client.empty()) {
+            return "You have no messages...";
+        }
+
+        std::string message = messages_for_client.front();
+        remove_first_message();
+        return message;
     }
 };
 
