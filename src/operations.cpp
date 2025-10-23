@@ -366,7 +366,9 @@ void handle_client_read(int64_t client_fd, Server &serv) {
     int bytes_read = recv(client->fd, buffer, sizeof(buffer), 0);
     //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
     if (bytes_read < 0) {
-        server_log_message(client->name, "ERROR", "recv() failed for " + client->name + ": " + strerror(errno), "handle_client_read");
+        if (errno != EAGAIN) {
+            server_log_message(client->name, "ERROR", "recv() failed for " + client->name + ": " + strerror(errno), "handle_client_read");
+        }
         return;
     } else if (bytes_read == 0) {
         server_log_message(client->name, "INFO", "recv() read 0 bytes for " + client->name);
