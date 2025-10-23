@@ -41,13 +41,13 @@ class Server {
         // Create socket for connection. Set to be non-blocking, so recv will
         // return immediately if there isn't anything waiting to be read.
         if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
-            server_log_message("A5_9", "ERROR","Failed to open socket");;
+            server_log_message("A5_9", "ERROR","Failed to open socket", "server_start_listening");;
             return -1;
         }
 
         // Allow socket to be quickly reused after program exit
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0) {
-            server_log_message("A5_9", "ERROR","Failed to set SO_REUSEADDR");
+            server_log_message("A5_9", "ERROR","Failed to set SO_REUSEADDR", "server_start_listening");
         }
 
         sk_addr.sin_family = AF_INET;
@@ -56,7 +56,7 @@ class Server {
 
         // Bind to socket to listen for connections from clients
         if (bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0) {
-            server_log_message("A5_9", "ERROR","Failed to bind to socket");
+            server_log_message("A5_9", "ERROR","Failed to bind to socket", "server_start_listening");
             return -1;
         } else {
             return sock;
@@ -82,18 +82,18 @@ class Server {
 
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = server_start_listening(port)) < 0) {
-            server_log_message(name, "ERROR","Failed to open socket");
+            server_log_message(name, "ERROR","Failed to open socket", "Server constructor");
             exit(-1);
         }
 
         if (listen(server_fd, MAX_CLIENTS) == -1) {
-            server_log_message(name, "ERROR","Failed to listen to server socket");
+            server_log_message(name, "ERROR","Failed to listen to server socket", "Server constructor");
             cleanup();
             exit(-1);
         }
 
         if ((epoll_fd = epoll_create1(0)) < 1) {
-            server_log_message(name, "ERROR","Failed to create epoll instance");
+            server_log_message(name, "ERROR","Failed to create epoll instance", "Server constructor");
             cleanup();
             exit(-1);
         }
@@ -102,7 +102,7 @@ class Server {
         event.events = EPOLLIN | EPOLLHUP | EPOLLERR;
         event.data.fd = server_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) == -1) {
-            server_log_message(name, "ERROR","Failed to add server socket to epoll instance");
+            server_log_message(name, "ERROR","Failed to add server socket to epoll instance", "Server constructor");
             cleanup();
             exit(-1);
         }
@@ -115,7 +115,7 @@ class Server {
         while (true) {
             int16_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
-                server_log_message("A5_9" ,"ERROR","Failed to wait for events");
+                server_log_message("A5_9" ,"ERROR","Failed to wait for events", "server.start");
                 cleanup();
                 exit(-1);
             }
@@ -132,7 +132,7 @@ class Server {
                         int error = 0;
                         socklen_t len = sizeof(error);
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
-                        server_log_message(client->name, "ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error));
+                        server_log_message(client->name, "ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error), "server.start");
 
                         client->close_con();
                         delete_client(fd);
@@ -207,7 +207,7 @@ class Server {
         event.events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-            server_log_message(name, "ERROR", "Failed to add client socket to epoll instance");
+            server_log_message(name, "ERROR", "Failed to add client socket to epoll instance", "Server.add_to_epoll");
             close(client_fd);
             return -1;
         }
@@ -235,7 +235,7 @@ class Server {
         }
 
         if ((client->fd = accept(server_fd, (struct sockaddr *)&client->addr, &client_add_len)) < 0) {
-            server_log_message(client->name, "ERROR","Failed to accept client connection");
+            server_log_message(client->name, "ERROR","Failed to accept client connection", "Server.register_client");
             return;
         }
 

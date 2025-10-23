@@ -38,7 +38,7 @@ void client_log_message(const std::string &type, const std::string &message) {
     client_logfile.flush();
 }
 
-void server_log_message(const std::string &client, const std::string &type, const std::string &message) {
+void server_log_message(const std::string &client, const std::string &type, const std::string &message, const std::string &func) {
     std::lock_guard<std::mutex> lock(server_log_mutex);
 
     if (!server_logfile.is_open()) {
@@ -50,9 +50,15 @@ void server_log_message(const std::string &client, const std::string &type, cons
     char* date_time = ctime(&now);
     date_time[strlen(date_time) - 1] = '\0'; // So it does not add a newline
 
+    if (type == "ERROR") {
+    std::cout << "[" << date_time << "] [" << client << "] [" << type << "] [" << func << "] " << message << std::endl;
+
+    server_logfile << "[" << date_time << "] [" << client << "] [" << type << "] [" << func << "] " << message << "\n";
+    } else {
     std::cout << "[" << date_time << "] [" << client << "] [" << type << "] " << message << std::endl;
 
     server_logfile << "[" << date_time << "] [" << client << "] [" << type << "] " << message << "\n";
+    }
 
     server_logfile.flush();
 }

@@ -30,13 +30,13 @@ int16_t send_stream(const std::string &stream_str, Client& client) {
     ssize_t sent = 0;
     server_log_message(client.name, "SENDING", stream_str);
     if(client.is_closed()){
-        server_log_message(client.name, "ERROR", "Client Closed During Send " + client.name);
+        server_log_message(client.name, "ERROR", "Client Closed During Send " + client.name, "send_stream");
         return -1;
     }
     while ((sent += send(client.fd, stream.data() + sent, stream.size() - sent, 0)) != stream.size()) {
         if (sent < 0) {
-            server_log_message(client.name, "ERROR", "Failed to send stream(" + stream_str + ") to client " + std::to_string(client.fd));
-            server_log_message(client.name, "ERROR", "Failed to send message: " + stream_str);
+            server_log_message(client.name, "ERROR", "Failed to send stream(" + stream_str + ") to client " + std::to_string(client.fd), "send_stream");
+            server_log_message(client.name, "ERROR", "Failed to send message: " + stream_str, "send_stream");
             return -1;
         } else if (sent != stream.size()) {
             server_log_message(client.name, "SENDING", "Sent " + std::to_string(sent) + " bytes of " + std::to_string(stream.size()));

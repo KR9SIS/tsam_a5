@@ -21,7 +21,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     server_log_message(name, "PROCESSING", "Opening client socket " + ip + ":" + std::to_string(port));
     int64_t sock;
     if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
-        server_log_message("", "ERROR", "Creating socket for client at " + ip + ":" + std::to_string(port) + " failed");
+        server_log_message("null", "ERROR", "Creating socket for client at " + ip + ":" + std::to_string(port) + " failed", "open_client_socket");
         return -1;
     }
     std::shared_ptr<Client> client = std::make_shared<Client>();
@@ -34,7 +34,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     client->addr.sin_family = AF_INET;
     client->addr.sin_port = htons(port);
     if ((inet_pton(AF_INET, ip.c_str(), &client->addr.sin_addr) != 1)) {
-        server_log_message(name, "ERROR", "Failed converting ip address to binary form for client at " + ip + ":" + std::to_string(port));
+        server_log_message(name, "ERROR", "Failed converting ip address to binary form for client at " + ip + ":" + std::to_string(port), "open_client_socket");
         return -1;
     }
 
@@ -43,8 +43,8 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         if (errno == EINPROGRESS) {
             server_log_message(name, "PROCESSING", "Wait for epoll. Connect returned EINPROGRESS for client at " + ip + ":" + std::to_string(port));
         } else {
-            server_log_message(name, "ERROR","Failed connecting to client at " + ip + ":" + std::to_string(port));
-            server_log_message(name, "ERROR", "Failed connecting to client at " + ip + ":" + std::to_string(port));
+            server_log_message(name, "ERROR","Failed connecting to client at " + ip + ":" + std::to_string(port), "open_client_socket");
+            server_log_message(name, "ERROR", "Failed connecting to client at " + ip + ":" + std::to_string(port), "open_client_socket");
             return -1;
         }
     }
@@ -56,7 +56,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     std::shared_ptr<Client> stored_client = server.get_server_client(client->fd);
 
     if(stored_client == nullptr){
-        server_log_message(client->name, "ERROR", "Server Returned A Null Client " + client->name);
+        server_log_message(client->name, "ERROR", "Server Returned A Null Client " + client->name, "open_client_socket");
         return -1;
     }
 
@@ -137,7 +137,7 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
 
         char peer_ip[INET_ADDRSTRLEN];
         if (!inet_ntop(AF_INET, &(c->addr.sin_addr), peer_ip, sizeof(peer_ip))) {
-            server_log_message(c->name, "ERROR",std::string("inet_ntop failed for client ").append(c->name));
+            server_log_message(c->name, "ERROR",std::string("inet_ntop failed for client ").append(c->name), "recv_helo");
             continue;
         }
 
@@ -176,7 +176,7 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
 int16_t get_msg(int64_t client_fd, Server &server) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
     if (client->name != "A5_9") {
-        server_log_message(client->name, "ERROR","Client With Insufficient Privileges To GETMSG Made An Attempt");
+        server_log_message(client->name, "ERROR","Client With Insufficient Privileges To GETMSG Made An Attempt", "get_msg");
         return -1;
     }
     
@@ -265,7 +265,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     if(command.rfind("GETMSGS", 0) == 0){
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
-            server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...");
+            server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
             return;
         }
 
@@ -278,7 +278,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() <= 3) { // Parameters need to be 4
-            server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...");
+            server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...", "message_handler");
             return;
         }
 
@@ -288,7 +288,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         std::vector<std::string> parameters = extract_parameters(command, ",");
 
         if (parameters.size() < 1) {
-            server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...");
+            server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...", "message_handler");
             return;
         }
         recv_helo(client_fd, server, parameters[1]); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
@@ -303,7 +303,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
 
             server_log_message(client->name, "INFO", "Received KEEPALIVE from " + client->name + " with " + std::to_string(num_messages) + " messages");
         } else {
-            server_log_message(client->name, "ERROR", "Malformed KEEPALIVE from " + client->name + ": " + command);
+            server_log_message(client->name, "ERROR", "Malformed KEEPALIVE from " + client->name + ": " + command, "message_handler");
         }
     }
     if(command.rfind("STATUSREQ", 0) == 0){
@@ -324,15 +324,15 @@ void handle_client_read(int64_t client_fd, Server &serv) {
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(client->fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-        server_log_message(client->name, "ERROR","getsockopt threw error for " + client->name);
-        server_log_message(client->name, "ERROR", "getsockopt threw error for " + client->name);
+        server_log_message(client->name, "ERROR","getsockopt threw error for " + client->name, "handle_client_read");
+        server_log_message(client->name, "ERROR", "getsockopt threw error for " + client->name, "handle_client_read");
         return;
     }
 
     int bytes_read = recv(client->fd, buffer, sizeof(buffer), 0);
     //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
     if (bytes_read <= 0) {
-        server_log_message(client->name, "ERROR", "recv() failed for " + client->name + ": " + strerror(errno));
+        server_log_message(client->name, "ERROR", "recv() failed for " + client->name + ": " + strerror(errno), "handle_client_read");
         return;
     }
 
@@ -372,8 +372,8 @@ void handle_client_write(int64_t client_fd, Server &serv) {
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(client->fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-        server_log_message(client->name, "ERROR","getsockopt threw error for " + client->name);
-        server_log_message(client->name, "ERROR", "getsockopt threw error for " + client->name);
+        server_log_message(client->name, "ERROR","getsockopt threw error for " + client->name, "handle_client_write");
+        server_log_message(client->name, "ERROR", "getsockopt threw error for " + client->name, "handle_client_write");
         return;
     }
 
