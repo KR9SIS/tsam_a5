@@ -62,8 +62,6 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
 
     server.add_client(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
 
-    server.client_names.insert(name);
-
     std::shared_ptr<Client> stored_client = server.get_server_client(client->fd);
 
     if(stored_client == nullptr){
