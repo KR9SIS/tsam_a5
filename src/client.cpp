@@ -94,7 +94,7 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     if (bytes_received == 0) {
         client_log_message("CLOSE", "Connection to server has closed\n");
-        return ""; // Since the connection has been closed
+        exit(0); // Since the connection has been closed
     } else if (bytes_received < 0) {
         client_log_message("TIMEOUT", "Response from server timed out");
         return ""; // So it goes back to the loop

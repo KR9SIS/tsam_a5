@@ -3,6 +3,7 @@
 #include "serv_client.hpp"
 #include <cstdio>
 #include <string>
+#include <cstring>
 
 int16_t send_stream(const std::string &stream_str, Client& client) {
     constexpr uint16_t frame_overhead =
@@ -97,18 +98,42 @@ std::vector<std::string> extract_frames(const std::string &message) {
     return packets;
 }
 
+// Each frame is: <SOH><length><STX><message><ETX>
+// Since the length is in network byte order the <length> is: [byte1][byte2] - len of fram (including tags)
 std::vector<std::string> extract_payload(const std::vector<std::string> &messages) {
     std::vector<std::string> payloads;
+
     for (const std::string &message : messages) {
-        size_t STX_pos = message.find(STX);
-        size_t ETX_pos = message.find(ETX);
+        if (message.size() < 5) continue; // package too short to be valid (leaves no space for the payload)
 
-        if (STX_pos == std::string::npos || ETX_pos == std::string::npos || STX_pos + 1 > ETX_pos) {
-            continue; // malformed/partial; skip
-        }
+        if (message[0] != SOH) continue; // Invalid, packages must start with SOH
 
-        payloads.push_back(message.substr(STX_pos + 1, ETX_pos - STX_pos - 1));
+        uint16_t net_byte_ord_len; // Length tag comes as 2-bytes in network byte order
+        memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t)); // Copy the 2 bytes into net_byte_ord_len
+        uint16_t len_tag = ntohs(net_byte_ord_len); // Convert net. byte order to host byte order (make sure it's right endian)
+        
+        if (len_tag > message.size() || len_tag < 5) continue;
+
+        // Extract payload
+        size_t payload_len = len_tag - 5; // Length of the payload (without the tags)
+        size_t payload_start = 4; // <SOH><len><STX> = 4 bytes - Payload starts after that
+
+        if (message.size() < payload_start + payload_len) continue;
+
+        std::string payload = message.substr(payload_start, payload_len);
+        payloads.push_back(payload);
     }
+
+    // for (const std::string &message : messages) {
+    //     size_t STX_pos = message.find(STX);
+    //     size_t ETX_pos = message.find(ETX);
+
+    //     if (STX_pos == std::string::npos || ETX_pos == std::string::npos || STX_pos + 1 > ETX_pos) {
+    //         continue; // malformed/partial; skip
+    //     }
+
+    //     payloads.push_back(message.substr(STX_pos + 1, ETX_pos - STX_pos - 1));
+    // }
 
     return payloads;
 }

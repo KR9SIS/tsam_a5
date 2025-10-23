@@ -1,17 +1,7 @@
-[Thu Oct 23 16:46:09 2025] [SENT] GETMSG,A5_9
-[Thu Oct 23 16:46:09 2025] [RESPONSE] HELO,A5_9
-[Thu Oct 23 16:46:10 2025] [SENT] GETMSG,A5_9
-[Thu Oct 23 16:46:10 2025] [RESPONSE] No Messages!!
-[Thu Oct 23 16:46:12 2025] [SENT] HELO,A5_9
-[Thu Oct 23 16:46:12 2025] [RESPONSE] No Messages!!
-[Thu Oct 23 16:46:14 2025] [SENT] GETMSG,A5_9
-[Thu Oct 23 16:46:14 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_40,130.208.240.13,4040;A5_67,130.208.246.98,47766;
-[Thu Oct 23 16:46:25 2025] [SENT] SENDMSG,Instr_2,A5_9,Hello
-[Thu Oct 23 16:46:25 2025] [RESPONSE] No Messages!!
-[Thu Oct 23 16:46:27 2025] [SENT] GETMSG,A5_9
-[Thu Oct 23 16:46:27 2025] [CLOSE] Connection to server has closed
+[Thu Oct 23 20:37:25 2025] [SENT] GETMSG,A5_9
+[Thu Oct 23 20:37:29 2025] [CLOSE] Connection to server has closed
 
-[Thu Oct 23 16:46:29 2025] [CLOSE] Connection to server has closed
+[Thu Oct 23 20:37:46 2025] [CLOSE] Connection to server has closed
 
-[Thu Oct 23 16:46:29 2025] [INFO] Closing socket...
-[Thu Oct 23 16:46:29 2025] [CLOSE] Connection to server has been closed
+[Thu Oct 23 20:37:46 2025] [INFO] Closing socket...
+[Thu Oct 23 20:37:46 2025] [CLOSE] Connection to server has been closed
