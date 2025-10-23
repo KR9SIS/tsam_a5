@@ -442,6 +442,7 @@ void client_worker(Server& server,int64_t client_fd){
         int32_t events = client->wait_for_events();
 
         if(events == -1){
+            server_log_message(name, "INFO", "Worker Exiting");
             return; // Connection was closed while waiting so this means we exit thread
         }
 
