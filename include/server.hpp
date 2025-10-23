@@ -143,7 +143,7 @@ class Server {
                     }
 
                     if(get_event_status(i) & EPOLLHUP){
-                        server_log_message(client->name, "INFO","Client " + get_server_client(fd)->name + " Hung Its Connection.");
+                        server_log_message(client->name, "INFO","Client " + client->name + " Hung Its Connection.");
                         delete_client(client->fd);
                         continue;
                     }
@@ -275,18 +275,18 @@ class Server {
         add_client(std::make_pair(client->fd, client));
 
         server_log_message(client->name, "ACCEPT","Registering New Client: " + client->name);
-        dispatch(send_helo, std::ref(*clients.find(client->fd)->second)); // Initial Hello (This Will Exit As Soon As It's Done Sending)
-        // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
-        // Each Event
+
+        dispatch(send_helo, std::ref(*client)); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         dispatch(client_worker,std::ref(*this), client->fd);
     }
 
     void delete_client(int64_t client_fd) {
         std::lock_guard<std::mutex> lk(server_mutex);
-        std::shared_ptr<Client> client = clients.find(client_fd)->second;
-        if (!client) {
+        auto it = clients.find(client_fd);
+        if (it == clients.end()) {
             return;
         }
+        std::shared_ptr<Client> client = it->second;
         std::lock_guard<std::mutex> client_lk(client->get_mutex());
         clients.erase(client->fd);
         client_names.erase(client->name);
@@ -326,15 +326,25 @@ class Server {
 
     std::shared_ptr<Client> get_server_client(int64_t client_fd) { 
         std::lock_guard<std::mutex> lk(server_mutex);
-        return clients.find(client_fd)->second; 
+        auto it = clients.find(client_fd);
+        if (it == clients.end()) {
+            return nullptr;
+        }
+        return it->second; 
     }
 
+    std::map<int64_t, std::shared_ptr<Client>> &get_server_client_unsafe_ref(){
+        return clients;
+    }
     std::map<int64_t, std::shared_ptr<Client>> get_server_clients() {
         std::lock_guard<std::mutex> lk(server_mutex);
         return clients; 
     }
 
     void add_client(std::pair<int64_t, std::shared_ptr<Client>> new_client){
+        if (!new_client.second) {
+            return;
+        }
         std::lock_guard<std::mutex> lk(server_mutex);
         clients.insert(new_client);
         client_names.insert(new_client.second->name);
