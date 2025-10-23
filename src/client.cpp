@@ -81,7 +81,7 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     // Set response timeout
     struct timeval tv;
-    tv.tv_sec = 7;  // 7 second timeout
+    tv.tv_sec = 10;  // 10 second timeout
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
@@ -97,7 +97,7 @@ std::string receive_respons_from_server(int64_t sock_fd) {
         return ""; // Since the connection has been closed
     } else if (bytes_received < 0) {
         client_log_message("TIMEOUT", "Response from server timed out");
-        return ""; // So it goes back to the loop   
+        return ""; // So it goes back to the loop
     }
 
     // Make sure to have a complete frame and if so unframe it
@@ -109,9 +109,19 @@ std::string receive_respons_from_server(int64_t sock_fd) {
     if (soh != std::string::npos && etx != std::string::npos && etx > soh) {
         std::string frame = buffer_accum.substr(soh, etx - soh + 1);
         buffer_accum.erase(0, etx + 1);
-        return unframe_message(frame); // Unframe the message received from the server
+        std::string message = unframe_message(frame); // Unframe the message received from the server
     }
     return ""; // No complete frame yet
+}
+
+void get_response(int64_t sock_fd) {
+    // Receive from server
+    std::string response = receive_respons_from_server(sock_fd);
+
+    // Check if the response is empty, and output the response if not
+    if (!response.empty()) {
+        client_log_message("RESPONSE", response);
+    }
 }
 
 void get_msg(int64_t sock_fd) {
@@ -121,12 +131,7 @@ void get_msg(int64_t sock_fd) {
     send_command_to_server(sock_fd, command);
 
     // Get the response back from the server
-    std::string response = receive_respons_from_server(sock_fd);
-
-    // Check if the response is empty, and output the response if not
-    if (!response.empty()) {
-        client_log_message("RESPONSE", response);
-    }
+    get_response(sock_fd);
 }
 
 void send_msg(int64_t sock_fd) {
@@ -146,14 +151,6 @@ void send_msg(int64_t sock_fd) {
     std::string command = "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
     
     send_command_to_server(sock_fd, command);
-
-    // Get the response back from the server
-    std::string response = receive_respons_from_server(sock_fd);
-
-    // Check if the response is empty, and output the response if not
-    if (!response.empty()) {
-        client_log_message("RESPONSE", response);
-    }
 }
 
 void list_servers(int64_t sock_fd) {
@@ -162,16 +159,19 @@ void list_servers(int64_t sock_fd) {
     send_command_to_server(sock_fd, command);
 
     // Get the response back from the server
-    std::string response = receive_respons_from_server(sock_fd);
-
-    // Check if the response is empty, and output the response if not
-    if (!response.empty()) {
-        client_log_message("RESPONSE", response);
-    }
+    get_response(sock_fd);
 }
 
-int64_t set_up_connection(const std::string &ip_string,
-                          int port) { // Might have to change ip parameter
+void req_status(int64_t sock_fd) {
+    // Send the command to the server
+    std::string command = "STATUSREQ";
+    send_command_to_server(sock_fd, command);
+
+    // Get the response back from the server
+    get_response(sock_fd);
+}
+
+int64_t set_up_connection(const std::string &ip_string, int port) { // Might have to change ip parameter
     // Create the socket
     int64_t sock_fd;
 
@@ -235,7 +235,8 @@ int main(int argc, char *argv[]) {
         std::cout << "\nAvailable commands:\n" 
         << "(1) GETMSG (Get a message from the server for your group)\n" 
         << "(2) SENDMSG (Let server deliver a message to a group)\n" 
-        << "(3) LISTSERVERS (List servers your server is connected to)\n" 
+        << "(3) LISTSERVERS (List servers your server is connected to)\n"
+        << "(4) STATUSREQ (Request the status of the server)\n"
         << "Press enter if you want to exit the program\n"
         << "Enter the number of your choice of a command: "; 
 
@@ -255,6 +256,8 @@ int main(int argc, char *argv[]) {
             send_msg(sock_fd);
         } else if (command == "3") {
             list_servers(sock_fd);
+        } else if (command == "4") {
+            req_status(sock_fd);
         } else {
             client_log_message("INVALID", "Invalid command...");
         }

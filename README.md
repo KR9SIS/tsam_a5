@@ -46,5 +46,8 @@ To execute the server
 To execute the client
 
 ```bash
-./client
+./client <ip_of_server> <port>
+
+# Example
+./client 130.208.246.98 4009
 ```

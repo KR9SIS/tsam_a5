@@ -186,7 +186,8 @@ int16_t get_msg(int64_t client_fd, Server &server) {
 
 int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message) {
     if (to_group == "A5_9") {
-        server.store_message_for_cnc(message);
+        std::string message_with_group = "[" + from_group + "] " + message;
+        server.store_message_for_cnc(message_with_group);
     }
 
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
