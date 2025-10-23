@@ -431,7 +431,8 @@ void client_worker(Server& server,int64_t client_fd){
         return;
     }
 
-    server_log_message(client->name, "INFO", "Client Registered");
+    std::string name = client->name;
+    server_log_message(name, "INFO", "Client Registered");
 
     while(!client->is_closed()){
         int32_t events = client->wait_for_events();
@@ -449,5 +450,7 @@ void client_worker(Server& server,int64_t client_fd){
             handle_client_write(client_fd, server);
         }
     }
+
+    server_log_message(name, "INFO", "Worker Exiting");
 }
 #endif
