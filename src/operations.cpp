@@ -14,6 +14,7 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <utility>
 #include <vector>
 #include <cstring>
 
@@ -64,19 +65,13 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     }
 
     server_log_message(client->name, "INFO", "Adding client");
-    server.add_client(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
 
-    std::shared_ptr<Client> stored_client = server.get_server_client(client->fd);
-
-    if(stored_client == nullptr){
-        server_log_message(client->name, "ERROR", "Server Returned A Null Client " + client->name, "open_client_socket");
-        return -1;
-    }
-
+    server.add_client(std::make_pair(client->fd, client));
+    server.client_names.insert(name);
     server.add_to_epoll(client->name, client->fd);
 
-    server.dispatch(client_worker, std::ref(server), stored_client->fd); // Dispatch READ Thread
-    send_helo(*stored_client);
+    server.dispatch(client_worker, std::ref(server), client->fd); // Dispatch READ Thread
+    send_helo(*client);
 
     return client->fd;
 }
