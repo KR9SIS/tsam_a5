@@ -274,7 +274,6 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
 
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
 
-        client->update_connections(client_conn);
 
         if (server.get_server_clients().size() < server.max_clients) {
             for (auto &[_, client_conn] : client->connections) {
@@ -288,6 +287,12 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
                 }
             }
         }
+        if (client_conn.size() > 8) {
+            block_group(client->name);
+            server.delete_client(client->fd);
+            return;
+        }
+        client->update_connections(client_conn);
     }
 
     if(command.rfind("GETMSGS", 0) == 0){
