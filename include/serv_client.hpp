@@ -16,7 +16,6 @@
 #include <vector>
 
 class Client {
-    std::mutex client_mutex;
     std::atomic<int32_t> events{0};
     std::condition_variable event_fired;
     std::atomic<bool> closed;
@@ -28,6 +27,7 @@ class Client {
     };
 
   public:
+    std::mutex client_mutex;
     //std::vector<std::string> messages_for_client;
     std::queue<std::string> outbound_messages;
     std::string inbuf; // Accumulates partial incoming data between recv() calls
@@ -79,7 +79,6 @@ class Client {
     void update_connections(std::vector<std::string> conns) {
         server_log_message(name, "PROCESSING", "Updating server connections");
         
-        std::lock_guard<std::mutex> lock(client_mutex);
         connections.clear();
 
         if (conns.empty()) {
@@ -117,19 +116,16 @@ class Client {
     }
 
     void push_message(const std::string &message) {
-        std::lock_guard<std::mutex> lock(client_mutex);
         outbound_messages.push(message);
     }
 
     void pop_message() {
-        std::lock_guard<std::mutex> lock(client_mutex);
         if (!outbound_messages.empty()) {
             outbound_messages.pop();
         }
     }
 
     std::string front_message() {
-        std::lock_guard<std::mutex> lock(client_mutex);
         if (!outbound_messages.empty()) {
             std::string message = outbound_messages.front();
             return message;

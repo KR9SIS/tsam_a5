@@ -316,16 +316,14 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
 }
 
 void handle_client_read(int64_t client_fd, Server &serv) {
+    if (client_fd < 0 || !serv.get_server_clients().contains(client_fd)) {
+        return; // invalid file descriptor or socket was closed elsewhere
+    }
+
     // Add framing to message and send
     char buffer[5000];
     std::shared_ptr<Client> client = serv.get_server_client(client_fd);
-
-    if (!serv.get_server_clients().contains(client->fd)) {
-        return; // socket was closed elsewhere
-    }
-    if (client->fd < 0) {
-        return; // invalid file descriptor
-    }
+    std::lock_guard<std::mutex> lock(client->client_mutex);
 
     int error = 0;
     socklen_t len = sizeof(error);
@@ -366,18 +364,14 @@ void handle_client_read(int64_t client_fd, Server &serv) {
 }
 
 void handle_client_write(int64_t client_fd, Server &serv) {
+    if (client_fd < 0 || !serv.get_server_clients().contains(client_fd)) {
+        return; // invalid file descriptor or socket was closed elsewhere
+    }
     // Add framing to message and send
     char buffer[5000];
     // && !client.outbound_messages.empty()
     std::shared_ptr<Client> client = serv.get_server_client(client_fd);
-
-    if (!serv.get_server_clients().contains(client->fd)) {
-        return; // socket was closed elsewhere
-    }
-    if (client->fd < 0) {
-        return; // invalid file descriptor
-    }
-
+    std::lock_guard<std::mutex> lock(client->client_mutex);
 
     int error = 0;
     socklen_t len = sizeof(error);
