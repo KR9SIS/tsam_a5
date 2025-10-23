@@ -1,6 +1,6 @@
 # Compiler/config
 CXX       := g++
-CXXFLAGS  := -std=c++23 -Werror
+CXXFLAGS  := -std=c++23 -Werror -ggdb
 CPPFLAGS  := -Iinclude -MMD -MP
 
 # Dirs
