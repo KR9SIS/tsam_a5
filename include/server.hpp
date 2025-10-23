@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -137,7 +138,6 @@ class Server {
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
                         server_log_message(client->name, "ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error), "server.start");
 
-                        client->close_con(epoll_fd);
                         delete_client(*client);
                         continue;
                     }
@@ -229,6 +229,7 @@ class Server {
             }
         }
 
+        std::cout << "Num clients:" << clients.size() << std::endl;
         for(auto& client : clients){
             if(!client.second){
                 server_log_message("NULL", "INFO", "Client In Map");
@@ -271,11 +272,11 @@ class Server {
     }
 
     void delete_client(Client &client) {
-        std::lock_guard<std::mutex> lk(server_mutex);
-        client.close_con(epoll_fd);
         std::lock_guard<std::mutex> client_lk(client.get_mutex());
+        std::lock_guard<std::mutex> lk(server_mutex);
         clients.erase(client.fd);
         client_names.erase(client.name);
+        client.close_con(epoll_fd);
 
         for (auto it = clients.begin(); it != clients.end(); ++it) {
             if (it->second->client_num >= client.client_num) {

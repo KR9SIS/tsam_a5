@@ -25,6 +25,17 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         return -1;
     }
     std::shared_ptr<Client> client = std::make_shared<Client>();
+
+    std::map<int64_t,std::shared_ptr<Client>> clients_copy = server.get_server_clients();
+    for(auto& client : clients_copy){
+        if(!client.second){
+            server_log_message("NULL", "INFO", "Client In Map");
+            continue;
+        }
+
+        server_log_message(client.second->name, "INFO", "Client In Map");
+    }
+
     client->name = name;
     //client.ip = ip;
     client->client_num = server.get_server_clients().size();
@@ -185,7 +196,7 @@ int16_t get_msg(int64_t client_fd, Server &server) {
         server_log_message(client->name, "ERROR","Client With Insufficient Privileges To GETMSG Made An Attempt", "get_msg");
         return -1;
     }
-    
+
     return send_stream(server.get_message_for_cnc(), *client);
 }
 
@@ -419,6 +430,9 @@ void client_worker(Server& server,int64_t client_fd){
         server_log_message("NULL","ERROR","Client Worker Fetched Null(Deleted) Client");
         return;
     }
+
+    server_log_message(client->name, "INFO", "Client Registered");
+
     while(!client->is_closed()){
         int32_t events = client->wait_for_events();
 
