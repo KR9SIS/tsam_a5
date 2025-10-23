@@ -218,12 +218,24 @@ class Server {
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client() {
-        if (clients.size() == MAX_CLIENTS) {
+        if (clients.size() == MAX_CLIENTS) { // If client connections are at max capacity deleta a client
+            bool client_deleted = false;
+            // If an already connected client is an instructor delete that client
             for (auto it = clients.begin(); it != clients.end(); ++it) {
-                // Deletes oldest client
-                if (it->second->client_num == 1) {
+                if (!it->second->name.empty() && it->second->name.rfind("A5_", 0) == 0) {
                     delete_client(*it->second);
+                    client_deleted = true;
                     break;
+                }
+            }
+            // If none of the connected clients are instructors, delete the oldest client
+            if (!client_deleted) {
+                for (auto it = clients.begin(); it != clients.end(); ++it) {
+                    // Deletes oldest client
+                    if (it->second->client_num == 1) {
+                        delete_client(*it->second);
+                        break;
+                    }
                 }
             }
         }
