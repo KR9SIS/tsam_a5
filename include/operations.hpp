@@ -1,8 +1,6 @@
 #pragma once
 #include "serv_client.hpp"
 #include <cstdint>
-#include <map>
-#include <memory>
 
 class Server; // WARNING: FORWARD DECAILRATION, DO NOT REMOVE THIS!!!!!
 
