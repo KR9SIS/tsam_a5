@@ -283,13 +283,12 @@ class Server {
     }
 
     void delete_client(int64_t client_fd) {
-        std::lock_guard<std::mutex> lk(server_mutex);
         auto it = clients.find(client_fd);
         if (it == clients.end()) {
             return;
         }
         std::shared_ptr<Client> client = it->second;
-        std::lock_guard<std::mutex> client_lk(client->get_mutex());
+        std::scoped_lock lk(server_mutex, client->client_mutex);
         clients.erase(client->fd);
         client_names.erase(client->name);
 
