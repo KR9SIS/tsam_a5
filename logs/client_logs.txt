@@ -1,7 +1,6 @@
-[Thu Oct 23 20:37:25 2025] [SENT] GETMSG,A5_9
-[Thu Oct 23 20:37:29 2025] [CLOSE] Connection to server has closed
+[Thu Oct 23 20:52:02 2025] [SENT] SENDMSG,Instr_1,A5_9,Helloooo
+[Thu Oct 23 20:52:05 2025] [SENT] GETMSG,A5_9
+[Thu Oct 23 20:52:15 2025] [TIMEOUT] Response from server timed out
+[Thu Oct 23 20:52:18 2025] [SENT] HELO,A5_9
+[Thu Oct 23 20:52:19 2025] [CLOSE] Connection to server has closed
 
-[Thu Oct 23 20:37:46 2025] [CLOSE] Connection to server has closed
-
-[Thu Oct 23 20:37:46 2025] [INFO] Closing socket...
-[Thu Oct 23 20:37:46 2025] [CLOSE] Connection to server has been closed
