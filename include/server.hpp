@@ -276,7 +276,6 @@ class Server {
         add_client(std::make_pair(client->fd, client));
 
         server_log_message(client->name, "ACCEPT","Registering New Client: " + client->name);
-
         dispatch(send_helo, std::ref(*client)); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         dispatch(client_worker,std::ref(*this), client->fd);
     }
