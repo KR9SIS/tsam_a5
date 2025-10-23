@@ -140,7 +140,7 @@ class Server {
                     }
 
                     if(get_event_status(i) & EPOLLHUP){
-                        server_log_message(client->name, "INFO","Client " + get_server_client(fd)->name + "Hung Its Connection.");
+                        server_log_message(client->name, "INFO","Client " + get_server_client(fd)->name + " Hung Its Connection.");
                         get_server_client(fd)->close_con();
                         delete_client(fd);
                         continue;
