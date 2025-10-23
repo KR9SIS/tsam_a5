@@ -287,7 +287,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
                 }
             }
         }
-        if (client_conn.size() > 8) {
+        if (client_conn.size() > 9) {
             block_group(client->name);
             server.delete_client(client->fd);
             return;
@@ -301,10 +301,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
             return;
         }
-
-
     }
-
     if (command.rfind("GETMSG", 0) == 0) {
         get_msg(client_fd, server);
     }
