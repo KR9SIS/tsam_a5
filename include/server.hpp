@@ -138,13 +138,13 @@ class Server {
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
                         server_log_message(client->name, "ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error), "server.start");
 
-                        delete_client(*client);
+                        delete_client(client->fd);
                         continue;
                     }
 
                     if(get_event_status(i) & EPOLLHUP){
                         server_log_message(client->name, "INFO","Client " + get_server_client(fd)->name + " Hung Its Connection.");
-                        delete_client(*client);
+                        delete_client(client->fd);
                         continue;
                     }
 
@@ -223,7 +223,7 @@ class Server {
             // If an already connected client is an instructor delete that client
             for (auto it = clients.begin(); it != clients.end(); ++it) {
                 if (!it->second->name.empty() && it->second->name.rfind("A5_", 0) == 0) {
-                    delete_client(*it->second);
+                    delete_client(it->second->fd);
                     client_deleted = true;
                     break;
                 }
@@ -233,7 +233,7 @@ class Server {
                 for (auto it = clients.begin(); it != clients.end(); ++it) {
                     // Deletes oldest client
                     if (it->second->client_num == 1) {
-                        delete_client(*it->second);
+                        delete_client(it->second->fd);
                         break;
                     }
                 }
@@ -280,15 +280,20 @@ class Server {
         dispatch(client_worker,std::ref(*this), client->fd);
     }
 
-    void delete_client(Client &client) {
+    void delete_client(int64_t client_fd) {
         std::lock_guard<std::mutex> lk(server_mutex);
-        std::lock_guard<std::mutex> client_lk(client.get_mutex());
-        clients.erase(client.fd);
-        client_names.erase(client.name);
-        client.close_con(epoll_fd);
+        std::shared_ptr<Client> client = clients[client_fd];
+        if (!client) {
+            return;
+        }
+        std::lock_guard<std::mutex> client_lk(client->get_mutex());
+        clients.erase(client->fd);
+        client_names.erase(client->name);
+
+        client->close_con(epoll_fd);
 
         for (auto it = clients.begin(); it != clients.end(); ++it) {
-            if (it->second->client_num >= client.client_num) {
+            if (it->second->client_num >= client->client_num) {
                 it->second->client_num--;
             }
         }
