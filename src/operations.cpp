@@ -93,6 +93,10 @@ void send_helo(Client &client) {
 
 int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    if(!client){
+        server_log_message("ERROR", "NULL","recv_helo Fetched A Null(Deleted) Client");
+        return -1;
+    }
     server_log_message(name, "RECV_HELO", name);
     client->name = name;
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
@@ -130,8 +134,6 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
     // Connected servers:
     for (auto &[_, c] : clients) {
         // Skip the client we just received HELO from itself (the C&C connection)
-        if (c->name == server.name) continue;
-
         if (c->addr.sin_addr.s_addr == 0 || c->addr.sin_port == 0)
             continue; // skip incomplete entries
 
@@ -175,6 +177,10 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
 
 int16_t get_msg(int64_t client_fd, Server &server) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    if(!client){
+        server_log_message("ERROR", "get_msg Fetched A Null(Deleted) Client");
+        return -1;
+    }
     if (client->name != "A5_9") {
         server_log_message(client->name, "ERROR","Client With Insufficient Privileges To GETMSG Made An Attempt", "get_msg");
         return -1;
@@ -233,6 +239,10 @@ int16_t resp_status(Server& server, int64_t client_fd) {
     }
 
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    if(!client){
+        server_log_message("ERROR", "NULL", "resp_status Fetched A Null(Deleted) Client");
+        return -1;
+    }
     resp.append(client->name).append(",").append(std::to_string(client->pending_messages));
 
     return send_stream(resp, *client);
@@ -240,6 +250,10 @@ int16_t resp_status(Server& server, int64_t client_fd) {
 
 void message_handler(int64_t client_fd, Server &server, const std::string &command) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    if(!client){
+        server_log_message("ERROR", "NULL", "message_handler Fetched A Null(Deleted) Client");
+        return;
+    }
     server_log_message(client->name, "RESPONSE", client->name + " sent " + command);
 
     if (command.rfind("SERVERS", 0) == 0) {
@@ -322,6 +336,12 @@ void handle_client_read(int64_t client_fd, Server &serv) {
     std::shared_ptr<Client> client = serv.get_server_client(client_fd);
     std::lock_guard<std::mutex> lock(client->client_mutex);
 
+    if(!client){
+        server_log_message("ERROR", "NULL", "Fetched Null(Deleted) Client During Read");
+        return;
+    }
+
+
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(client->fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
@@ -370,6 +390,12 @@ void handle_client_write(int64_t client_fd, Server &serv) {
     std::shared_ptr<Client> client = serv.get_server_client(client_fd);
     std::lock_guard<std::mutex> lock(client->client_mutex);
 
+    if(!client){
+        server_log_message("ERROR", "NULL", "Handle Write Got A Null(deleted) Client");
+        return;
+    }
+
+
     int error = 0;
     socklen_t len = sizeof(error);
     if (getsockopt(client->fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
@@ -389,6 +415,10 @@ void handle_client_write(int64_t client_fd, Server &serv) {
 
 void client_worker(Server& server,int64_t client_fd){
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    if(!client){
+        server_log_message("ERROR","Client Worker Fetched Null(Deleted) Client");
+        return;
+    }
     while(!client->is_closed()){
         int32_t events = client->wait_for_events();
 

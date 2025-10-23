@@ -128,21 +128,23 @@ class Server {
                     uint32_t events = get_event_status(i);
                     std::shared_ptr<Client> client = get_server_client(fd);
 
+                    if(client == nullptr){ continue; }
+
                     if(get_event_status(i) & EPOLLERR){
                         int error = 0;
                         socklen_t len = sizeof(error);
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
                         server_log_message(client->name, "ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error), "server.start");
 
-                        client->close_con();
-                        delete_client(fd);
+                        client->close_con(epoll_fd);
+                        delete_client(*client);
                         continue;
                     }
 
                     if(get_event_status(i) & EPOLLHUP){
                         server_log_message(client->name, "INFO","Client " + get_server_client(fd)->name + " Hung Its Connection.");
-                        get_server_client(fd)->close_con();
-                        delete_client(fd);
+                        get_server_client(fd)->close_con(epoll_fd);
+                        delete_client(*client);
                         continue;
                     }
 
@@ -167,7 +169,7 @@ class Server {
             static size_t keepalive_index = 0;
 
             time_t now = time(nullptr);
-            auto &client_map = clients;
+            std::map<int64_t, std::shared_ptr<Client>> client_map = get_server_clients();
 
             if (!client_map.empty()) {
                 double interval = 60.0 / client_map.size(); // To distribute evenly
@@ -259,7 +261,7 @@ class Server {
 
     void delete_client(Client &client) {
         std::lock_guard<std::mutex> lk(server_mutex);
-        client.close_con();
+        client.close_con(epoll_fd);
         std::lock_guard<std::mutex> client_lk(client.get_mutex());
         clients.erase(client.fd);
         client_names.erase(client.name);
@@ -295,7 +297,7 @@ class Server {
         return message;
     }
 
-    std::shared_ptr<Client>& get_server_client(int64_t client_fd) { 
+    std::shared_ptr<Client> get_server_client(int64_t client_fd) { 
         std::lock_guard<std::mutex> lk(server_mutex);
         return clients[client_fd]; 
     }
@@ -303,11 +305,6 @@ class Server {
     std::map<int64_t, std::shared_ptr<Client>> get_server_clients() {
         std::lock_guard<std::mutex> lk(server_mutex);
         return clients; 
-    }
-
-    void delete_client(int64_t client_fd){
-        std::lock_guard<std::mutex> lk(server_mutex);
-        clients.erase(client_fd);
     }
 
     void add_client(std::pair<int64_t, std::shared_ptr<Client>> new_client){

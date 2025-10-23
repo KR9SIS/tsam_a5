@@ -61,10 +61,11 @@ class Client {
         event_fired.notify_one();
     }
 
-    void close_con(){
+    void close_con(int64_t epoll_fd){
         std::lock_guard<std::mutex> lk(client_mutex);
         closed.store(true, std::memory_order_release);
         if(fd <= 0){
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
             close(fd);
             fd = -1;
         }
