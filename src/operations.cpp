@@ -371,7 +371,7 @@ void handle_client_read(int64_t client_fd, Server &serv) {
         }
         return;
     } else if (bytes_read == 0) {
-        server_log_message(client->name, "INFO", "recv() read 0 bytes for " + client->name);
+        return;
     }
 
     // Append new data into the client's input buffer
