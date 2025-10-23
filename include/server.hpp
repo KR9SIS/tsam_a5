@@ -144,7 +144,6 @@ class Server {
 
                     if(get_event_status(i) & EPOLLHUP){
                         server_log_message(client->name, "INFO","Client " + get_server_client(fd)->name + " Hung Its Connection.");
-                        get_server_client(fd)->close_con(epoll_fd);
                         delete_client(*client);
                         continue;
                     }
@@ -272,8 +271,8 @@ class Server {
     }
 
     void delete_client(Client &client) {
-        std::lock_guard<std::mutex> client_lk(client.get_mutex());
         std::lock_guard<std::mutex> lk(server_mutex);
+        std::lock_guard<std::mutex> client_lk(client.get_mutex());
         clients.erase(client.fd);
         client_names.erase(client.name);
         client.close_con(epoll_fd);
