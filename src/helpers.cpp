@@ -29,7 +29,6 @@ int16_t send_stream(const std::string &stream_str, Client& client) {
 
     // Use the vector's size (host order) as the number of bytes to send
     ssize_t sent = 0;
-    server_log_message(client.name, "SENDING", stream_str);
     if(client.is_closed()){
         server_log_message(client.name, "ERROR", "Client Closed During Send " + client.name, "send_stream");
         return -1;
