@@ -111,9 +111,11 @@ class Server {
 
     void start() {
         dispatch(send_helos, std::ref(*this));
-        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "Instr_1");
-        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "Instr_2");
         while (true) {
+            if (clients.size() == 0) {
+                dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "Instr_1");
+                dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "Instr_2");
+            }
             int16_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
                 server_log_message("A5_9" ,"ERROR","Failed to wait for events", "server.start");
