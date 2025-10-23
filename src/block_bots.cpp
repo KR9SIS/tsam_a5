@@ -19,12 +19,12 @@ bool is_blocked(const std::string &name) {
 void block_group(const std::string &name) {
     auto now = std::chrono::system_clock::now();
     blocklist[name] = now + std::chrono::minutes(BLOCK_TIME_MINUTES);
-    server_log_message("INFO", "Blocked group: " + name + " for " + std::to_string(BLOCK_TIME_MINUTES) + " minutes.");
+    server_log_message(name,"INFO", "Blocked group: " + name + " for " + std::to_string(BLOCK_TIME_MINUTES) + " minutes.");
 }
 
 void reset_blocklist() {
     blocklist.clear();
-    server_log_message("INFO", "Blocklist has been cleared.");
+    server_log_message("All", "INFO", "Blocklist has been cleared.");
 }
 
 void remove_expired_blocks() {

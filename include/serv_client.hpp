@@ -14,7 +14,6 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <vector>
-#include <iostream>
 
 // WARNING: Not Sure If We Should Use This Or
 // Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No KeepAlive)
@@ -83,7 +82,7 @@ class Client {
     }
 
     void update_connections(std::vector<std::string> conns) {
-        server_log_message("PROCESSING", "Updating server connections");
+        server_log_message(name, "PROCESSING", "Updating server connections");
         
         std::lock_guard<std::mutex> lock(client_mutex);
         connections.clear();

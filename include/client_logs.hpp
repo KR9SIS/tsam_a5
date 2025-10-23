@@ -14,6 +14,6 @@ extern std::ofstream client_logfile;
 extern std::ofstream server_logfile;
 
 void client_log_message(const std::string &type, const std::string &message);
-void server_log_message(const std::string &type, const std::string &message);
+void server_log_message(const std::string &client, const std::string &type, const std::string &message);
 
 void new_file(const std::string &is_server_or_client);

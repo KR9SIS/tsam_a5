@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     new_file("SERVER");
 
     Server server(port);
-    server_log_message("SUCCESS", "Server started. Listening on port: " + std::to_string(port));
+    server_log_message("A5_9", "SUCCESS", "Server started. Listening on port: " + std::to_string(port));
 
     server.start();
     return 0;
