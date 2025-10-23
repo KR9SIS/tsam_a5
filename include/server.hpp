@@ -271,6 +271,7 @@ class Server {
             return;
         }
 
+        server_log_message(client->name, "INFO", "Adding client");
         add_client(std::make_pair(client->fd, client));
 
         server_log_message(client->name, "ACCEPT","Registering New Client: " + client->name);

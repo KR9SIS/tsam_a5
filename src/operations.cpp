@@ -60,6 +60,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         }
     }
 
+    server_log_message(client->name, "INFO", "Adding client");
     server.add_client(std::pair<int64_t, std::shared_ptr<Client>>(client->fd, client));
 
     std::shared_ptr<Client> stored_client = server.get_server_client(client->fd);
@@ -142,6 +143,9 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
 
     // Connected servers:
     for (auto &[_, c] : clients) {
+        if (c == nullptr) {
+            continue;
+        }
         // Skip the client we just received HELO from itself (the C&C connection)
         if (c->addr.sin_addr.s_addr == 0 || c->addr.sin_port == 0)
             continue; // skip incomplete entries
@@ -361,9 +365,11 @@ void handle_client_read(int64_t client_fd, Server &serv) {
 
     int bytes_read = recv(client->fd, buffer, sizeof(buffer), 0);
     //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
-    if (bytes_read <= 0) {
+    if (bytes_read < 0) {
         server_log_message(client->name, "ERROR", "recv() failed for " + client->name + ": " + strerror(errno), "handle_client_read");
         return;
+    } else if (bytes_read == 0) {
+        server_log_message(client->name, "INFO", "recv() read 0 bytes for " + client->name);
     }
 
     // Append new data into the client's input buffer
