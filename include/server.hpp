@@ -275,7 +275,7 @@ class Server {
         add_client(std::make_pair(client->fd, client));
 
         server_log_message(client->name, "ACCEPT","Registering New Client: " + client->name);
-        dispatch(send_helo, std::ref(*clients[client->fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
+        dispatch(send_helo, std::ref(*clients.find(client->fd)->second)); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
         // Each Event
         dispatch(client_worker,std::ref(*this), client->fd);
@@ -283,7 +283,7 @@ class Server {
 
     void delete_client(int64_t client_fd) {
         std::lock_guard<std::mutex> lk(server_mutex);
-        std::shared_ptr<Client> client = clients[client_fd];
+        std::shared_ptr<Client> client = clients.find(client_fd)->second;
         if (!client) {
             return;
         }
