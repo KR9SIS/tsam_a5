@@ -170,10 +170,6 @@ int16_t send_keepalive_helper(Client &client) {
 int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     client.pending_messages = num_messages;
 
-    if (num_messages > 0) {
-        client.status = ClientState::ACTIVE;
-    }
-
     return 0;
 }
 

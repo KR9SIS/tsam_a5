@@ -15,10 +15,6 @@
 #include <unistd.h>
 #include <vector>
 
-// WARNING: Not Sure If We Should Use This Or
-// Just Count For How Many Minutes Each Client Has Remained Dormant(AKA No KeepAlive)
-enum class ClientState { ACTIVE = 0, INACTIVE = 1 };
-
 class Client {
     std::mutex client_mutex;
     std::atomic<int32_t> events{0};
@@ -35,7 +31,6 @@ class Client {
     //std::vector<std::string> messages_for_client;
     std::queue<std::string> outbound_messages;
     std::string inbuf; // Accumulates partial incoming data between recv() calls
-    ClientState status;
 
     std::string name;
     sockaddr_in addr = {0};
@@ -44,7 +39,7 @@ class Client {
     uint16_t pending_messages;
     std::map<std::string, conn> connections;
 
-    Client() : name(""), fd(-1), status(ClientState::ACTIVE), events(0) {};
+    Client() : name(""), fd(-1), events(0) {};
 
     int32_t wait_for_events(){
         std::unique_lock<std::mutex> lk(client_mutex);
