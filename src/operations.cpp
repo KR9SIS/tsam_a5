@@ -125,7 +125,7 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
             dst.sin_port = htons(80);
             inet_pton(AF_INET, "8.8.8.8", &dst.sin_addr);
             if (connect(s, (sockaddr*)&dst, sizeof(dst)) == 0) {
-                sockaddr_in local{};
+                sockaddr_in local;
                 socklen_t len = sizeof(local);
                 if (getsockname(s, (sockaddr*)&local, &len) == 0) {
                     inet_ntop(AF_INET, &(local.sin_addr), ip_str, sizeof(ip_str));
