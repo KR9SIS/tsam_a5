@@ -94,7 +94,7 @@ void send_helo(Client &client) {
 int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
     if(!client){
-        server_log_message("ERROR", "NULL","recv_helo Fetched A Null(Deleted) Client");
+        server_log_message("NULL","ERROR","recv_helo Fetched A Null(Deleted) Client");
         return -1;
     }
     server_log_message(name, "RECV_HELO", name);
@@ -178,7 +178,7 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
 int16_t get_msg(int64_t client_fd, Server &server) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
     if(!client){
-        server_log_message("ERROR", "get_msg Fetched A Null(Deleted) Client");
+        server_log_message("NULL","ERROR", "get_msg Fetched A Null(Deleted) Client");
         return -1;
     }
     if (client->name != "A5_9") {
@@ -240,7 +240,7 @@ int16_t resp_status(Server& server, int64_t client_fd) {
 
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
     if(!client){
-        server_log_message("ERROR", "NULL", "resp_status Fetched A Null(Deleted) Client");
+        server_log_message("NULL", "ERROR", "resp_status Fetched A Null(Deleted) Client");
         return -1;
     }
     resp.append(client->name).append(",").append(std::to_string(client->pending_messages));
@@ -251,7 +251,7 @@ int16_t resp_status(Server& server, int64_t client_fd) {
 void message_handler(int64_t client_fd, Server &server, const std::string &command) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
     if(!client){
-        server_log_message("ERROR", "NULL", "message_handler Fetched A Null(Deleted) Client");
+        server_log_message("NULL", "ERROR", "message_handler Fetched A Null(Deleted) Client");
         return;
     }
     server_log_message(client->name, "RESPONSE", client->name + " sent " + command);
@@ -416,7 +416,7 @@ void handle_client_write(int64_t client_fd, Server &serv) {
 void client_worker(Server& server,int64_t client_fd){
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
     if(!client){
-        server_log_message("ERROR","Client Worker Fetched Null(Deleted) Client");
+        server_log_message("NULL","ERROR","Client Worker Fetched Null(Deleted) Client");
         return;
     }
     while(!client->is_closed()){

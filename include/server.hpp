@@ -120,6 +120,7 @@ class Server {
                 exit(-1);
             }
 
+
             for (int16_t i = 0; i < num_events; ++i) {
                 if (check_for_new_client(i)) {
                     register_client();
@@ -227,6 +228,16 @@ class Server {
                 }
             }
         }
+
+        for(auto& client : clients){
+            if(!client.second){
+                server_log_message("NULL", "INFO", "Client In Map");
+                continue;
+            }
+
+            server_log_message(client.second->name, "INFO", "Client In Map");
+        }
+
         // Accept new client connection
         std::shared_ptr<Client> client = std::make_shared<Client>();
         socklen_t client_add_len = sizeof(client->addr);
