@@ -63,7 +63,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
 
     server.add_to_epoll(client->fd);
 
-    server.dispatch(client_worker, std::ref(server), stored_client); // Dispatch READ Thread
+    server.dispatch(client_worker, std::ref(server), stored_client->fd); // Dispatch READ Thread
     send_helo(*stored_client);
 
     return client->fd;
@@ -92,9 +92,10 @@ void send_helo(Client &client) {
     client.push_message("HELO,A5_9");
 }
 
-int16_t recv_helo(Client &client, Server &server, const std::string &name) {
+int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
+    std::shared_ptr<Client> client = server.get_server_client(client_fd);
     server_log_message("RECV_HELO", name);
-    client.name = name;
+    client->name = name;
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
     std::string message("SERVERS,");
 
@@ -137,7 +138,7 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
 
         char peer_ip[INET_ADDRSTRLEN];
         if (!inet_ntop(AF_INET, &(c->addr.sin_addr), peer_ip, sizeof(peer_ip))) {
-            write_error(std::string("inet_ntop failed for client ").append(c->name));
+            server_log_message("ERROR",std::string("inet_ntop failed for client ").append(c->name));
             continue;
         }
 
@@ -145,7 +146,7 @@ int16_t recv_helo(Client &client, Server &server, const std::string &name) {
         message.append(peer_ip).append(",");
         message.append(std::to_string(ntohs(c->addr.sin_port))).append(";");
     }
-    return send_stream(message, client);
+    return send_stream(message, *client);
 }
 
 // int16_t send_keepalive(std::map<int64_t, Client> &clients) {
@@ -167,7 +168,7 @@ int16_t send_keepalive_helper(Client &client) {
 }
 
 
-int16_t recieve_keepalive(Client &client, uint16_t num_messages) {
+int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     client.pending_messages = num_messages;
 
     if (num_messages > 0) {
@@ -177,13 +178,14 @@ int16_t recieve_keepalive(Client &client, uint16_t num_messages) {
     return 0;
 }
 
-int16_t get_msg(Client &client, Server &server) {
-    if (client.name != "A5_9") {
-        write_error("Client With Insufficient Privileges To GETMSG Made An Attempt");
+int16_t get_msg(int64_t client_fd, Server &server) {
+    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    if (client->name != "A5_9") {
+        server_log_message("ERROR","Client With Insufficient Privileges To GETMSG Made An Attempt");
         return -1;
     }
-
-    return send_stream(server.get_message_for_cnc(), client);
+    
+    return send_stream(server.get_message_for_cnc(), *client);
 }
 
 
@@ -231,29 +233,32 @@ int16_t req_status(Client& client) {
     return send_stream("STATUSREQ", client); // NOTE: We Should Monitor For Changes To This
 }
 
-int16_t resp_status(Server& server, Client& client) {
+int16_t resp_status(Server& server, int64_t client_fd) {
     std::map<long, std::shared_ptr<Client>> clients = server.get_server_clients();
     std::string resp("STATUSRESP,");
     for(auto client = clients.begin(); client != clients.end(); ++client){
         resp.append(client->second->name).append(",").append(std::to_string(client->second->pending_messages)).append(",");
     }
-    resp.append(client.name).append(",").append(std::to_string(client.pending_messages));
 
-    return send_stream(resp, client);
+    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    resp.append(client->name).append(",").append(std::to_string(client->pending_messages));
+
+    return send_stream(resp, *client);
 }
 
-void message_handler(Client &client, Server &server, const std::string &command) {
-    server_log_message("RESPONSE", client.name + " sent " + command);
+void message_handler(int64_t client_fd, Server &server, const std::string &command) {
+    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    server_log_message("RESPONSE", client->name + " sent " + command);
 
     if (command.rfind("SERVERS", 0) == 0) {
         std::string rest = command.substr(strlen("SERVERS,"));
 
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
 
-        client.update_connections(client_conn);
+        client->update_connections(client_conn);
 
         if (server.get_server_clients().size() < server.max_clients) {
-            for (auto &[_, client_conn] : client.connections) {
+            for (auto &[_, client_conn] : client->connections) {
                 if (server.client_names.find(client_conn.name) == server.client_names.end()) {
                     server_log_message("INFO", "Connecting To Client [IP]: " + client_conn.ip + " [ID]: " + client_conn.name + " [PORT]: " + std::to_string(client_conn.port));
                     open_client_socket(server, client_conn.ip, client_conn.port, client_conn.name);
@@ -277,7 +282,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
     }
 
     if (command.rfind("GETMSG", 0) == 0) {
-        get_msg(client, server);
+        get_msg(client_fd, server);
     }
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -295,7 +300,7 @@ void message_handler(Client &client, Server &server, const std::string &command)
             server_log_message("ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...");
             return;
         }
-        recv_helo(client, server, parameters[1]); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
+        recv_helo(client_fd, server, parameters[1]); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
     }
     if (command.rfind("KEEPALIVE", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -303,97 +308,101 @@ void message_handler(Client &client, Server &server, const std::string &command)
         if (parameters.size() == 2 && !parameters[1].empty() && std::all_of(parameters[1].begin(), parameters[1].end(), ::isdigit)) {
 
             uint16_t num_messages = static_cast<uint16_t>(std::stoi(parameters[1]));
-            recieve_keepalive(client, num_messages);
+            recieve_keepalive(*client, num_messages);
 
-            server_log_message("INFO", "Received KEEPALIVE from " + client.name + " with " + std::to_string(num_messages) + " messages");
+            server_log_message("INFO", "Received KEEPALIVE from " + client->name + " with " + std::to_string(num_messages) + " messages");
         } else {
-            server_log_message("ERROR", "Malformed KEEPALIVE from " + client.name + ": " + command);
+            server_log_message("ERROR", "Malformed KEEPALIVE from " + client->name + ": " + command);
         }
     }
     if(command.rfind("STATUSREQ", 0) == 0){
-        resp_status(server, client);
+        resp_status(server, client->fd);
     }
 }
 
-void handle_client_read(Client &client, Server &serv) {
+void handle_client_read(int64_t client_fd, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
-    if (!serv.get_server_clients().contains(client.fd)) {
+    std::shared_ptr<Client> client = serv.get_server_client(client_fd);
+
+    if (!serv.get_server_clients().contains(client->fd)) {
         return; // socket was closed elsewhere
     }
-    if (client.fd < 0) {
+    if (client->fd < 0) {
         return; // invalid file descriptor
     }
 
     int error = 0;
     socklen_t len = sizeof(error);
-    if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-        server_log_message("ERROR","getsockopt threw error for " + client.name);
-        server_log_message("ERROR", "getsockopt threw error for " + client.name);
+    if (getsockopt(client->fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+        server_log_message("ERROR","getsockopt threw error for " + client->name);
+        server_log_message("ERROR", "getsockopt threw error for " + client->name);
         return;
     }
 
-    int bytes_read = recv(client.fd, buffer, sizeof(buffer), 0);
+    int bytes_read = recv(client->fd, buffer, sizeof(buffer), 0);
     //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
     if (bytes_read <= 0) {
-        server_log_message("ERROR", "recv() failed for " + client.name + ": " + strerror(errno));
+        server_log_message("ERROR", "recv() failed for " + client->name + ": " + strerror(errno));
         return;
     }
 
     // Append new data into the client's input buffer
-    client.inbuf.append(buffer, bytes_read);
+    client->inbuf.append(buffer, bytes_read);
 
     // Unframe
     //std::string message(buffer, static_cast<size_t>(bytes_read));
     //log_message("PROCESSING", message);
 
-    std::vector<std::string> messages = extract_frames(client.inbuf);
+    std::vector<std::string> messages = extract_frames(client->inbuf);
 
     std::vector<std::string> commands = extract_payload(messages);
 
     server_log_message("INFO", "Received " + std::to_string(commands.size()) + " Commands");
     // Call message handler on every message
     for (auto it = commands.begin(); it != commands.end(); ++it) {
-        message_handler(client, serv, *it);
+        message_handler(client->fd, serv, *it);
     }
 
-    size_t last_etx = client.inbuf.rfind(static_cast<char>(ETX));
+    size_t last_etx = client->inbuf.rfind(static_cast<char>(ETX));
     if (last_etx != std::string::npos) {
-        client.inbuf.erase(0, last_etx + 1);
+        client->inbuf.erase(0, last_etx + 1);
     }
 }
 
-void handle_client_write(Client &client, Server &serv) {
+void handle_client_write(int64_t client_fd, Server &serv) {
     // Add framing to message and send
     char buffer[5000];
     // && !client.outbound_messages.empty()
+    std::shared_ptr<Client> client = serv.get_server_client(client_fd);
 
-    if (!serv.get_server_clients().contains(client.fd)) {
+    if (!serv.get_server_clients().contains(client->fd)) {
         return; // socket was closed elsewhere
     }
-    if (client.fd < 0) {
+    if (client->fd < 0) {
         return; // invalid file descriptor
     }
 
 
     int error = 0;
     socklen_t len = sizeof(error);
-    if (getsockopt(client.fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
-        server_log_message("ERROR","getsockopt threw error for " + client.name);
-        server_log_message("ERROR", "getsockopt threw error for " + client.name);
+    if (getsockopt(client->fd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+        server_log_message("ERROR","getsockopt threw error for " + client->name);
+        server_log_message("ERROR", "getsockopt threw error for " + client->name);
         return;
     }
 
-    std::string msg = client.front_message();
+    std::string msg = client->front_message();
 
     if (msg != "") {
-        if ((send_stream(msg, client)) != -1) {
-            client.pop_message();
+        if ((send_stream(msg, *client)) != -1) {
+            client->pop_message();
         };
     }
 }
 
-void client_worker(Server& server, std::shared_ptr<Client> client){
+void client_worker(Server& server,int64_t client_fd){
+    std::shared_ptr<Client> client = server.get_server_client(client_fd);
     while(!client->is_closed()){
         int32_t events = client->wait_for_events();
 
@@ -402,11 +411,12 @@ void client_worker(Server& server, std::shared_ptr<Client> client){
         }
 
         if(events & EPOLLIN){
-            handle_client_read(*client, server);
+            handle_client_read(client_fd, server);
         }
+
         if(events & EPOLLOUT){
             // WARNING: Segfault Is Happening Here Most Likely After Close
-            handle_client_write(*client, server);
+            handle_client_write(client_fd, server);
         }
     }
 }

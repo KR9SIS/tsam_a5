@@ -68,13 +68,13 @@ class Client {
     }
 
     void close_con(){
+        std::lock_guard<std::mutex> lk(client_mutex);
         closed.store(true, std::memory_order_release);
         if(fd <= 0){
             close(fd);
             fd = -1;
         }
 
-        std::lock_guard<std::mutex> lk(client_mutex);
         event_fired.notify_one();
     }
 

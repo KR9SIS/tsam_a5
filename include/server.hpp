@@ -41,13 +41,13 @@ class Server {
         // Create socket for connection. Set to be non-blocking, so recv will
         // return immediately if there isn't anything waiting to be read.
         if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
-            write_error("Failed to open socket");
+            server_log_message("ERROR","Failed to open socket");;
             return -1;
         }
 
         // Allow socket to be quickly reused after program exit
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0) {
-            write_error("Failed to set SO_REUSEADDR");
+            server_log_message("ERROR","Failed to set SO_REUSEADDR");
         }
 
         sk_addr.sin_family = AF_INET;
@@ -56,7 +56,7 @@ class Server {
 
         // Bind to socket to listen for connections from clients
         if (bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0) {
-            write_error("Failed to bind to socket");
+            server_log_message("ERROR","Failed to bind to socket");
             return -1;
         } else {
             return sock;
@@ -82,18 +82,18 @@ class Server {
 
     Server(int16_t port) : server_fd(-1), epoll_fd(-1) {
         if ((server_fd = server_start_listening(port)) < 0) {
-            write_error("Failed to open socket");
+            server_log_message("ERROR","Failed to open socket");
             exit(-1);
         }
 
         if (listen(server_fd, MAX_CLIENTS) == -1) {
-            write_error("Failed to listen to server socket");
+            server_log_message("ERROR","Failed to listen to server socket");
             cleanup();
             exit(-1);
         }
 
         if ((epoll_fd = epoll_create1(0)) < 1) {
-            write_error("Failed to create epoll instance");
+            server_log_message("ERROR","Failed to create epoll instance");
             cleanup();
             exit(-1);
         }
@@ -102,7 +102,7 @@ class Server {
         event.events = EPOLLIN | EPOLLHUP | EPOLLERR;
         event.data.fd = server_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) == -1) {
-            write_error("Failed to add server socket to epoll instance");
+            server_log_message("ERROR","Failed to add server socket to epoll instance");
             cleanup();
             exit(-1);
         }
@@ -115,7 +115,7 @@ class Server {
         while (true) {
             int16_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
-                write_error("Failed to wait for events");
+                server_log_message("ERROR","Failed to wait for events");
                 cleanup();
                 exit(-1);
             }
@@ -126,24 +126,23 @@ class Server {
                 } else {
                     int64_t fd = get_event_socket(i);
                     uint32_t events = get_event_status(i);
+                    std::shared_ptr<Client> client = get_server_client(fd);
 
                     if(get_event_status(i) & EPOLLERR){
                         int error = 0;
                         socklen_t len = sizeof(error);
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
-                        server_log_message("ERROR","Error On Socket " + get_server_client(fd)->name + " Error Code: " + std::to_string(error));
+                        server_log_message("ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error));
 
-                        get_server_client(fd)->close_con();
-                        std::lock_guard<std::mutex> lk(server_mutex);
-                        clients.erase(fd);
+                        client->close_con();
+                        delete_client(fd);
                         continue;
                     }
 
                     if(get_event_status(i) & EPOLLHUP){
                         server_log_message("INFO","Client " + get_server_client(fd)->name + "Hung Its Connection.");
                         get_server_client(fd)->close_con();
-                        std::lock_guard<std::mutex> lk(server_mutex);
-                        clients.erase(fd);
+                        delete_client(fd);
                         continue;
                     }
 
@@ -154,11 +153,11 @@ class Server {
                     }
 
                     // If EPOLLOUT is set, it's ready to write
-                    if (get_event_status(i) & EPOLLOUT) {
+                    if ((get_event_status(i) & EPOLLOUT) && !client->outbound_messages.empty()) {
                         new_events |= EPOLLOUT;
                     }
 
-                    get_server_client(fd)->notify(new_events);
+                    client->notify(new_events);
                 }
             }
 
@@ -236,7 +235,7 @@ class Server {
         }
 
         if ((client->fd = accept(server_fd, (struct sockaddr *)&client->addr, &client_add_len)) < 0) {
-            write_error("Failed to accept client connection");
+            server_log_message("ERROR","Failed to accept client connection");
             return;
         }
 
@@ -255,12 +254,13 @@ class Server {
         dispatch(send_helo, std::ref(*clients[client->fd])); // Initial Hello (This Will Exit As Soon As It's Done Sending)
         // NOTE: Seperate Threads For Read And Write So We Can Spin Wait For
         // Each Event
-        dispatch(client_worker,std::ref(*this), client);
+        dispatch(client_worker,std::ref(*this), client->fd);
     }
 
     void delete_client(Client &client) {
-        client.close_con();
         std::lock_guard<std::mutex> lk(server_mutex);
+        client.close_con();
+        std::lock_guard<std::mutex> client_lk(client.get_mutex());
         clients.erase(client.fd);
         client_names.erase(client.name);
 
@@ -295,9 +295,15 @@ class Server {
         return message;
     }
 
-    std::shared_ptr<Client>& get_server_client(int64_t client_fd) { return clients[client_fd]; }
+    std::shared_ptr<Client>& get_server_client(int64_t client_fd) { 
+        std::lock_guard<std::mutex> lk(server_mutex);
+        return clients[client_fd]; 
+    }
 
-    const std::map<int64_t, std::shared_ptr<Client>>& get_server_clients() { return clients; }
+    std::map<int64_t, std::shared_ptr<Client>> get_server_clients() {
+        std::lock_guard<std::mutex> lk(server_mutex);
+        return clients; 
+    }
 
     void delete_client(int64_t client_fd){
         std::lock_guard<std::mutex> lk(server_mutex);
@@ -307,6 +313,10 @@ class Server {
     void add_client(std::pair<int64_t, std::shared_ptr<Client>> new_client){
         std::lock_guard<std::mutex> lk(server_mutex);
         clients.insert(new_client);
+    }
+
+    std::mutex& get_mutex(){
+        return server_mutex;
     }
 
     ~Server() { cleanup(); }

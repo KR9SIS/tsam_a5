@@ -10,7 +10,6 @@ constexpr int8_t SOH = 0x01;
 constexpr int8_t STX = 0x02;
 constexpr int8_t ETX = 0x03;
 
-extern void write_error(std::string msg, FILE *fd = stderr);
 extern int16_t send_stream(const std::string &stream_str, Client &client);
 extern std::vector<std::string> extract_parameters(const std::string payload, const std::string delimiter);
 extern std::vector<std::string> extract_frames(const std::string &message);

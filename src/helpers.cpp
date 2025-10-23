@@ -2,21 +2,17 @@
 #include "client_logs.hpp"
 #include "serv_client.hpp"
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <system_error>
 
-void write_error(std::string msg, FILE *fd) {
-    std::error_code ec(errno, std::system_category());
-    fprintf(fd, "MESSAGE: %s\nERROR CODE: %d\nREASON: %s\n", msg.c_str(), ec.value(), ec.message().c_str());
-}
-
-int16_t send_stream(const std::string &stream_str, Client &client) {
+int16_t send_stream(const std::string &stream_str, Client& client) {
     constexpr uint16_t frame_overhead =
         1 /*SOH*/ + 2 /*len*/ + 1 /*STX*/ + 1 /*ETX*/;
     constexpr uint16_t MAX_STREAM_LEN = 5000;
 
     if (stream_str.size() > MAX_STREAM_LEN - frame_overhead) {
-        write_error("Tried To Send A Message Exceeding Max Length");
+        server_log_message("ERROR","Tried To Send A Message Exceeding Max Length");
         server_log_message("ERROR", "Tried to send a message exceeding max length");
         return -1;
     }
@@ -35,9 +31,13 @@ int16_t send_stream(const std::string &stream_str, Client &client) {
     // Use the vector's size (host order) as the number of bytes to send
     ssize_t sent = 0;
     server_log_message("SENDING", stream_str);
+    if(client.is_closed()){
+        server_log_message("ERROR", "Client Closed During Send " + client.name);
+        return -1;
+    }
     while ((sent += send(client.fd, stream.data() + sent, stream.size() - sent, 0)) != stream.size()) {
         if (sent < 0) {
-            write_error("Failed to send stream(" + stream_str + ") to client " + std::to_string(client.fd));
+            server_log_message("ERROR", "Failed to send stream(" + stream_str + ") to client " + std::to_string(client.fd));
             server_log_message("ERROR", "Failed to send message: " + stream_str);
             return -1;
         } else if (sent != stream.size()) {
