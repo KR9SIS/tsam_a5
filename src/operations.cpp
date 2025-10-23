@@ -80,7 +80,7 @@ void send_helos(Server &server) {
 void send_statusreqs(Server &server) {
     while (true) {
         for (auto &[_, client] : server.get_server_clients()) {
-            req_status(*client);
+            client->push_message("STATUSREQ");
         }
         sleep(200);
     }
@@ -223,10 +223,6 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
     return 0;
 }
 
-// WARNING: IMPLEMENT
-int16_t req_status(Client& client) { 
-    return send_stream("STATUSREQ", client); // NOTE: We Should Monitor For Changes To This
-}
 
 int16_t resp_status(Server& server, int64_t client_fd) {
     std::map<long, std::shared_ptr<Client>> clients = server.get_server_clients();
