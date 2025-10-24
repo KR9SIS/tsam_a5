@@ -28,16 +28,6 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     }
     std::shared_ptr<Client> client = std::make_shared<Client>();
 
-    std::map<int64_t,std::shared_ptr<Client>> clients_copy = server.get_server_clients(lock);
-    // for(auto& client : clients_copy){
-    //     if(!client.second){
-    //         //server_log_message("NULL", "INFO", "Client In Map");
-    //         continue;
-    //     }
-
-    //     //server_log_message(client.second->name, "INFO", "Client In Map");
-    // }
-
     if (client->name == "tmp" && name != "tmp") {
         server_log_message(name, "INFO", "Updated client name: tmp to " + name);
     }
@@ -176,16 +166,6 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, st
     return send_stream(message, *client);
 }
 
-// int16_t send_keepalive(std::map<int64_t, Client> &clients) {
-//     int16_t num_failures = 0;
-//     for (auto it = clients.begin(); it != clients.end(); ++it) {
-//         if (send_stream(std::string("KEEPALIVE,").append(std::to_string(it->second.pending_messages)), it->second) == -1) {
-//             write_error(std::string("Failed To Send KEEPALIVE To").append(it->second.name));
-//             num_failures += 1;
-//         }
-//     }
-//     return num_failures;
-// }
 
 // Does the same thing as keepalive just minimises errors and sends at seperate occations not all at same time
 int16_t send_keepalive_helper(Client &client) {
@@ -201,20 +181,6 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
 
     return 0;
 }
-
-// int16_t get_msg(int64_t client_fd, Server &server) {
-//     std::shared_ptr<Client> client = server.get_server_client(client_fd);
-//     if(!client){
-//         server_log_message("NULL","ERROR", "get_msg Fetched A Null(Deleted) Client");
-//         return -1;
-//     }
-//     if (client->name != "A5_9") {
-//         server_log_message(client->name, "ERROR", "Wrong command, correct command is GETMSGS,<group_id", "get_msg");
-//         return send_stream("ERROR,Wrong command, correct command is GETMSGS,<group_id", *client);
-//     }
-
-//     return send_stream(server.get_message_for_cnc(), *client);
-// }
 
 int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_name, std::unique_lock<std::mutex>& lock) {
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
@@ -242,7 +208,6 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
         return send_stream(messages, *client);
     }
 }
-
 
 int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message, std::unique_lock<std::mutex>& lock) {
     if (to_group == "A5_9") {
@@ -427,10 +392,6 @@ void handle_client_read(int64_t client_fd, Server &serv, std::unique_lock<std::m
 
     // Append new data into the client's input buffer
     client->inbuf.append(buffer, bytes_read);
-
-    // Unframe
-    //std::string message(buffer, static_cast<size_t>(bytes_read));
-    //log_message("PROCESSING", message);
 
     std::vector<std::string> messages = extract_frames(client->inbuf);
 
