@@ -214,7 +214,7 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
 
     if(!client){
-        server_log_message("NULL","ERROR", "get_msg Fetched A Null(Deleted) Client");
+        server_log_message("NULL","ERROR", "get_msgs Fetched A Null(Deleted) Client");
         return -1;
     }
     if (client->name == "A5_9") {
@@ -331,15 +331,13 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         }
     }
 
-    if (command.rfind("GETMSG", 0) == 0) {
-        if(command.rfind("GETMSGS", 0) == 0){
+    if (command.rfind("GETMSSG", 0) == 0) {
             std::vector<std::string> parameters = extract_parameters(command, ",");
             if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
                 server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
                 return;
             }
             get_msgs(client_fd, server, parameters[1]);
-        }
     }
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");

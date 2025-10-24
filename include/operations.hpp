@@ -9,9 +9,9 @@ extern int16_t recv_helo(int64_t client_fd, Server &server, const std::string &n
 //extern int16_t send_keepalive(std::map<int64_t, Client> &clients);
 extern int16_t send_keepalive_helper(Client& client);
 extern int16_t recieve_keepalive(Client& client, uint16_t num_messages);
-extern int16_t get_msg(int64_t client_fd, Server &server);
+extern int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_id);
 extern int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message);
-extern int16_t req_status(Client& client_fd);
+//extern int16_t req_status(Client& client_fd);
 extern int16_t resp_status(Server& server, int64_t client_fd);
 extern void message_handler(int64_t client_fd, Server &server, const std::string &command);
 extern void handle_client_read(int64_t client_fd, Server &serv);
