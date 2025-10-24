@@ -223,7 +223,7 @@ class Server {
             bool client_deleted = false;
             // If an already connected client is an instructor delete that client
             for (auto it = clients.begin(); it != clients.end(); ++it) {
-                if (!it->second->name.empty() && it->second->name.rfind("A5_", 0) == 0) {
+                if (!it->second->name.empty() && it->second->name.rfind("A5_", 0) == std::string::npos) {
                     delete_client(it->second->fd);
                     client_deleted = true;
                     break;
@@ -239,16 +239,6 @@ class Server {
                     }
                 }
             }
-        }
-
-        std::cout << "Num clients:" << clients.size() << std::endl;
-        for(auto& client : clients){
-            if(!client.second){
-                //server_log_message("NULL", "INFO", "Client In Map");
-                continue;
-            }
-
-            //server_log_message(client.second->name, "INFO", "Client In Map");
         }
 
         // Accept new client connection
@@ -335,6 +325,7 @@ class Server {
     std::map<int64_t, std::shared_ptr<Client>> &get_server_client_unsafe_ref(){
         return clients;
     }
+
     std::map<int64_t, std::shared_ptr<Client>> get_server_clients() {
         std::lock_guard<std::mutex> lk(server_mutex);
         return clients; 
