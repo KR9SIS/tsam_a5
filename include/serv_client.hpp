@@ -19,12 +19,23 @@ class Client {
     std::atomic<int32_t> events{0};
     std::condition_variable event_fired;
     std::atomic<bool> closed;
+    int64_t epoll_fd;
 
     struct conn {
         std::string name;
         std::string ip;
         uint16_t port;
     };
+
+    void toggle_epoll_write(bool enable){
+        epoll_event ev{};
+        ev.data.fd = fd;
+        ev.events = EPOLLIN | EPOLLERR | EPOLLHUP;
+        if(enable) ev.events |= EPOLLOUT;
+        if(epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) < 0){
+            server_log_message(name, "ERROR", "FAILED To Enable EPOLL Write Events");
+        }
+    }
 
   public:
     std::mutex client_mutex;
@@ -40,6 +51,10 @@ class Client {
     std::vector<std::string> messages_for_client;
 
     Client() : name("tmp"), fd(-1), events(0) {};
+
+    void set_epoll_fd(int64_t fd){
+        epoll_fd = fd;
+    }
 
     int32_t wait_for_events(){
         std::unique_lock<std::mutex> lk(client_mutex);
@@ -116,11 +131,16 @@ class Client {
 
     void push_message(const std::string &message) {
         outbound_messages.push(message);
+        toggle_epoll_write(true);
     }
 
     void pop_message() {
         if (!outbound_messages.empty()) {
             outbound_messages.pop();
+
+            if(outbound_messages.empty()){
+                toggle_epoll_write(false);
+            }
         }
     }
 

@@ -214,9 +214,21 @@ class Server {
         return server_fd;
     }
 
+    void modify_write_events(int64_t client_fd, bool enable){
+        epoll_event ev{};
+        ev.data.fd = client_fd;
+        ev.events = EPOLLIN | EPOLLERR | EPOLLHUP;
+        if(enable)
+            ev.events |= EPOLLOUT;
+
+        if(epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_fd, & ev) < 0){
+            server_log_message("EPOLL", "ERROR", "Write Event Toggle Failed");
+        }
+    }
+
     uint8_t add_to_epoll(const std::string name, int64_t client_fd) {
         // Add client socket to epoll
-        event.events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR;
+        event.events = EPOLLIN | EPOLLHUP | EPOLLERR;
         event.data.fd = client_fd;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
             server_log_message(name, "ERROR", "Failed to add client socket to epoll instance", "Server.add_to_epoll");
@@ -323,6 +335,7 @@ class Server {
         if (!new_client.second) {
             return;
         }
+        new_client.second->set_epoll_fd(epoll_fd);
         clients.insert(new_client);
         client_names.insert(new_client.second->name);
         if(lock.owns_lock()){

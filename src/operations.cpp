@@ -209,13 +209,29 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
     }
 }
 
+std::string parse_send_msg(const std::string& message){
+    size_t first = message.find(',');
+    if (first == std::string::npos) return "";
+
+    size_t second = message.find(',', first + 1);
+    if (second == std::string::npos) return "";
+
+    size_t third = message.find(',', second + 1);
+    if (third == std::string::npos) return "";
+
+    // Everything after the 3rd comma is the message
+    return message.substr(third + 1);
+}
+
 int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message, std::unique_lock<std::mutex>& lock) {
+    std::string parsed_message = parse_send_msg(message);
+
     if (to_group == "A5_9") {
-        std::string message_with_group = "[" + from_group + "] " + message;
-        server.store_message_for_cnc(message_with_group, lock);
+        std::string message_with_group = "[" + from_group + "] " + parsed_message;
+        server.store_message_for_cnc(parsed_message, lock);
     }
 
-    std::string message_with_group = "[FROM: " + from_group + "] " + message;
+    std::string message_with_group = "[FROM: " + from_group + "] " + parsed_message;
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     for (auto &[_, client] : clients) {
         if (client->name == to_group) {
@@ -232,7 +248,7 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
         }
     }
 
-    std::string msg_copy = message;
+    std::string msg_copy(message);
     ssize_t hops_idx = msg_copy.find('\x04');
     if (hops_idx == std::string::npos) {
         msg_copy.push_back('\x04');
@@ -311,15 +327,15 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     }
 
     if (command.rfind("GETMSGS,", 0) == 0) {
-            std::vector<std::string> parameters = extract_parameters(command, ",");
-            if (parameters.size() != 2) { // Parameters need to be 2
-                server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
-                return;
-            }
-            get_msgs(client_fd, server, parameters[1], lock);
-            if(lock.owns_lock()){
-                lock.unlock(); // NOTE: get_msgs does not unlock, just returns so we give back the lock here
-            }
+        std::vector<std::string> parameters = extract_parameters(command, ",");
+        if (parameters.size() != 2) { // Parameters need to be 2
+            server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
+            return;
+        }
+        get_msgs(client_fd, server, parameters[1], lock);
+        if(lock.owns_lock()){
+            lock.unlock(); // NOTE: get_msgs does not unlock, just returns so we give back the lock here
+        }
     }
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -328,7 +344,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             return;
         }
 
-        send_msg(server, parameters[1], parameters[2], parameters[3], lock);
+        send_msg(server, parameters[1], parameters[2], command, lock);
     }
     if (command.rfind("HELO", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
