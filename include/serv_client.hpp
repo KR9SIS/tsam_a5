@@ -57,7 +57,6 @@ class Client {
 
     void notify(int new_events){
         events.fetch_or(new_events, std::memory_order_release);
-        std::lock_guard<std::mutex> lk(client_mutex);
         event_fired.notify_one();
     }
 

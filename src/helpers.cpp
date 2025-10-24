@@ -2,6 +2,7 @@
 #include "client_logs.hpp"
 #include "serv_client.hpp"
 #include <cstdio>
+#include <mutex>
 #include <string>
 #include <cstring>
 

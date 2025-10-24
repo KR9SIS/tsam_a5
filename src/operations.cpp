@@ -10,6 +10,7 @@
 #include <cerrno>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -18,7 +19,7 @@
 #include <vector>
 #include <cstring>
 
-int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::string name) {
+int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::string name, std::unique_lock<std::mutex>& lock) {
     server_log_message(name, "PROCESSING", "Opening client socket " + ip + ":" + std::to_string(port));
     int64_t sock;
     if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0) {
@@ -27,7 +28,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     }
     std::shared_ptr<Client> client = std::make_shared<Client>();
 
-    std::map<int64_t,std::shared_ptr<Client>> clients_copy = server.get_server_clients();
+    std::map<int64_t,std::shared_ptr<Client>> clients_copy = server.get_server_clients(lock);
     // for(auto& client : clients_copy){
     //     if(!client.second){
     //         //server_log_message("NULL", "INFO", "Client In Map");
@@ -42,12 +43,15 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     }
     client->name = name;
     //client.ip = ip;
-    client->client_num = server.get_server_clients().size();
+    client->client_num = server.get_server_clients(lock).size();
+
+
     client->fd = sock;
     socklen_t client_add_len = sizeof(client->addr);
 
     client->addr.sin_family = AF_INET;
     client->addr.sin_port = htons(port);
+
     if ((inet_pton(AF_INET, ip.c_str(), &client->addr.sin_addr) != 1)) {
         server_log_message(name, "ERROR", "Failed converting ip address to binary form for client at " + ip + ":" + std::to_string(port), "open_client_socket");
         return -1;
@@ -66,7 +70,7 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
 
     server_log_message(client->name, "INFO", "Adding client");
 
-    server.add_client(std::make_pair(client->fd, client));
+    server.add_client(std::make_pair(client->fd, client), lock);
     server.client_names.insert(name);
     server.add_to_epoll(client->name, client->fd);
 
@@ -77,8 +81,10 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
 }
 
 void send_helos(Server &server) {
+    std::unique_lock<std::mutex> server_lock(server.get_mutex());
+    server_log_message("EVERYONE", "INFO", "Sending Helos To Everyone");
     while (true) {
-        for (auto &[_, client] : server.get_server_clients()) {
+        for (auto &[_, client] : server.get_server_clients(server_lock)) {
             send_helo(*client);
         }
         sleep(120);
@@ -86,8 +92,9 @@ void send_helos(Server &server) {
 }
 
 void send_statusreqs(Server &server) {
+    std::unique_lock<std::mutex> server_lock(server.get_mutex());
     while (true) {
-        for (auto &[_, client] : server.get_server_clients()) {
+        for (auto &[_, client] : server.get_server_clients(server_lock)) {
             client->push_message("STATUSREQ");
         }
         sleep(200);
@@ -99,8 +106,8 @@ void send_helo(Client &client) {
     client.push_message("HELO,A5_9");
 }
 
-int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
-    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, std::unique_lock<std::mutex>& lock) {
+    std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
     if(!client){
         server_log_message("NULL","ERROR","recv_helo Fetched A Null(Deleted) Client");
         return -1;
@@ -111,7 +118,7 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
         server_log_message(name, "INFO", "Updated client name: tmp to " + name);
     }
     client->name = name;
-    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
+    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     std::string message("SERVERS,");
 
     // Determine IP of itself
@@ -162,6 +169,10 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
         message.append(peer_ip).append(",");
         message.append(std::to_string(ntohs(c->addr.sin_port))).append(";");
     }
+
+    if(!lock.owns_lock()){
+        lock.lock(); // Prevent Modification During Send
+    }
     return send_stream(message, *client);
 }
 
@@ -180,7 +191,8 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
 int16_t send_keepalive_helper(Client &client) {
     if (client.fd < 0) return -1; // skip closed sockets
 
-    return send_stream(std::string("KEEPALIVE,").append(std::to_string(client.pending_messages)), client);
+    client.append_message(std::string("KEEPALIVE,").append(std::to_string(client.pending_messages)));
+    return 0;
 }
 
 
@@ -204,16 +216,16 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
 //     return send_stream(server.get_message_for_cnc(), *client);
 // }
 
-int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_name) {
-    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
-    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_name, std::unique_lock<std::mutex>& lock) {
+    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
+    std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
 
     if(!client){
         server_log_message("NULL","ERROR", "get_msgs Fetched A Null(Deleted) Client");
         return -1;
     }
     if (client->name == "A5_9") {
-        return send_stream(server.get_message_for_cnc(), *client);
+        return send_stream(server.get_message_for_cnc(lock), *client);
     } else {
         std::string messages;
         for (auto &[_, cli] : clients) {
@@ -232,14 +244,14 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
 }
 
 
-int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message) {
+int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message, std::unique_lock<std::mutex>& lock) {
     if (to_group == "A5_9") {
         std::string message_with_group = "[" + from_group + "] " + message;
-        server.store_message_for_cnc(message_with_group);
+        server.store_message_for_cnc(message_with_group, lock);
     }
 
     std::string message_with_group = "[FROM: " + from_group + "] " + message;
-    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
+    std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     for (auto &[_, client] : clients) {
         if (client->name == to_group) {
             client->push_message(message);
@@ -276,25 +288,28 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
 }
 
 
-int16_t resp_status(Server& server, int64_t client_fd) {
-    std::map<long, std::shared_ptr<Client>> clients = server.get_server_clients();
+int16_t resp_status(Server& server, int64_t client_fd, std::unique_lock<std::mutex>& lock) {
+    std::map<long, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     std::string resp("STATUSRESP,");
     for(auto client = clients.begin(); client != clients.end(); ++client){
         resp.append(client->second->name).append(",").append(std::to_string(client->second->pending_messages)).append(",");
     }
 
-    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+    std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
     if(!client){
         server_log_message("NULL", "ERROR", "resp_status Fetched A Null(Deleted) Client");
         return -1;
     }
     resp.append(client->name).append(",").append(std::to_string(client->pending_messages));
 
+    if(!lock.owns_lock()){
+        lock.lock();
+    }
     return send_stream(resp, *client);
 }
 
-void message_handler(int64_t client_fd, Server &server, const std::string &command) {
-    std::shared_ptr<Client> client = server.get_server_client(client_fd);
+void message_handler(int64_t client_fd, Server &server, const std::string &command, std::unique_lock<std::mutex>& lock) {
+    std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
     if(!client){
         server_log_message("NULL", "ERROR", "message_handler Fetched A Null(Deleted) Client");
         return;
@@ -307,11 +322,12 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
 
         client->update_connections(client_conn);
-        if (server.get_server_clients().size() < server.max_clients) {
+
+        if (server.get_server_clients(lock).size() < server.max_clients) {
             for (auto &[_, client_conn] : client->connections) {
                 if (server.client_names.find(client_conn.name) == server.client_names.end()) {
                     server_log_message(client->name, "INFO", "Connecting To Client [IP]: " + client_conn.ip + " [ID]: " + client_conn.name + " [PORT]: " + std::to_string(client_conn.port));
-                    open_client_socket(server, client_conn.ip, client_conn.port, client_conn.name);
+                    open_client_socket(server, client_conn.ip, client_conn.port, client_conn.name, lock);
                 }
 
                 if (server.client_names.size() == server.max_clients) {
@@ -319,11 +335,14 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
                 }
             }
         }
-        // if (client_conn.size() > 9) {
-        //     block_group(client->name);
-        //     server.delete_client(client->fd);
-        //     return;
-        // }
+        if (client_conn.size() > 9) {
+            block_group(client->name);
+            server.delete_client(client->fd, lock);
+            return;
+        }
+
+
+        client->update_connections(client_conn);
     }
 
     if (command.rfind("GETMSGS,", 0) == 0) {
@@ -332,7 +351,10 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
                 server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
                 return;
             }
-            get_msgs(client_fd, server, parameters[1]);
+            get_msgs(client_fd, server, parameters[1], lock);
+            if(lock.owns_lock()){
+                lock.unlock(); // NOTE: get_msgs does not unlock, just returns so we give back the lock here
+            }
     }
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -341,7 +363,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             return;
         }
 
-        send_msg(server, parameters[1], parameters[2], parameters[3]);
+        send_msg(server, parameters[1], parameters[2], parameters[3], lock);
     }
     if (command.rfind("HELO", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -350,7 +372,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...", "message_handler");
             return;
         }
-        recv_helo(client_fd, server, parameters[1]); // So it does not store HELO as name
+        recv_helo(client_fd, server, parameters[1], lock); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
     }
     if (command.rfind("KEEPALIVE", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -365,26 +387,24 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             server_log_message(client->name, "ERROR", "Malformed KEEPALIVE from " + client->name + ": " + command, "message_handler");
         }
     }
+
     if(command.rfind("STATUSREQ", 0) == 0){
-        resp_status(server, client->fd);
+        resp_status(server, client->fd, lock);
     }
 }
 
-void handle_client_read(int64_t client_fd, Server &serv) {
-    if (client_fd < 0 || !serv.get_server_clients().contains(client_fd)) {
+void handle_client_read(int64_t client_fd, Server &serv, std::unique_lock<std::mutex>& lock) {
+    if (client_fd < 0 || !serv.get_server_clients(lock).contains(client_fd)) {
         return; // invalid file descriptor or socket was closed elsewhere
     }
-
     // Add framing to message and send
     char buffer[6000];
-    std::shared_ptr<Client> client = serv.get_server_client(client_fd);
-    std::lock_guard<std::mutex> lock(client->client_mutex);
+    std::shared_ptr<Client> client = serv.get_server_client(client_fd, lock);
 
     if(!client){
         server_log_message("ERROR", "NULL", "Fetched Null(Deleted) Client During Read");
         return;
     }
-
 
     int error = 0;
     socklen_t len = sizeof(error);
@@ -428,7 +448,7 @@ void handle_client_read(int64_t client_fd, Server &serv) {
     server_log_message(client->name, "INFO", "Received " + std::to_string(commands.size()) + " Commands");
     // Call message handler on every message
     for (auto it = commands.begin(); it != commands.end(); ++it) {
-        message_handler(client->fd, serv, *it);
+        message_handler(client->fd, serv, *it, lock);
     }
 
     size_t last_etx = client->inbuf.rfind(static_cast<char>(ETX));
@@ -437,21 +457,19 @@ void handle_client_read(int64_t client_fd, Server &serv) {
     }
 }
 
-void handle_client_write(int64_t client_fd, Server &serv) {
-    if (client_fd < 0 || !serv.get_server_clients().contains(client_fd)) {
+void handle_client_write(int64_t client_fd, Server &serv, std::unique_lock<std::mutex>& lock) {
+    if (client_fd < 0 || !serv.get_server_clients(lock).contains(client_fd)) {
         return; // invalid file descriptor or socket was closed elsewhere
     }
     // Add framing to message and send
     char buffer[5000];
     // && !client.outbound_messages.empty()
-    std::shared_ptr<Client> client = serv.get_server_client(client_fd);
-    std::lock_guard<std::mutex> lock(client->client_mutex);
+    std::shared_ptr<Client> client = serv.get_server_client(client_fd, lock);
 
     if(!client){
         server_log_message("ERROR", "NULL", "Handle Write Got A Null(deleted) Client");
         return;
     }
-
 
     int error = 0;
     socklen_t len = sizeof(error);
@@ -472,17 +490,20 @@ void handle_client_write(int64_t client_fd, Server &serv) {
 }
 
 void client_worker(Server& server,int64_t client_fd){
-    std::shared_ptr<Client> client = server.get_server_client(client_fd);
-    if(!client){
-        server_log_message("NULL","ERROR","Client Worker Fetched Null(Deleted) Client");
-        return;
-    }
+    std::unique_lock<std::mutex> server_lock(server.get_mutex(), std::defer_lock);
+    std::shared_ptr<Client> client = server.get_server_client(client_fd, server_lock);
+    if(!client){ return; }
 
     std::string name = client->name;
     server_log_message(name, "INFO", "Client Registered");
 
-    while(!client->is_closed()){
+
+    while(true){
         int32_t events = client->wait_for_events();
+
+        if(client->is_closed())
+            return;
+
 
         if(events == -1){
             server_log_message(name, "INFO", "Worker Exiting");
@@ -490,15 +511,17 @@ void client_worker(Server& server,int64_t client_fd){
         }
 
         if(events & EPOLLIN){
-            handle_client_read(client_fd, server);
+            handle_client_read(client_fd, server, server_lock);
         }
 
         if(events & EPOLLOUT){
             // WARNING: Segfault Is Happening Here Most Likely After Close
-            handle_client_write(client_fd, server);
+            handle_client_write(client_fd, server, server_lock);
+        }
+
+        if(server_lock.owns_lock()){
+            server_lock.unlock();
         }
     }
-
-    server_log_message(name, "INFO", "Worker Exiting");
 }
 #endif
