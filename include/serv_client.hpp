@@ -39,7 +39,7 @@ class Client {
     std::map<std::string, conn> connections;
     std::vector<std::string> messages_for_client;
 
-    Client() : name("new"), fd(-1), events(0) {};
+    Client() : name("tmp"), fd(-1), events(0) {};
 
     int32_t wait_for_events(){
         std::unique_lock<std::mutex> lk(client_mutex);

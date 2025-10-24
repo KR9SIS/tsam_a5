@@ -36,6 +36,9 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
         server_log_message(client.second->name, "INFO", "Client In Map");
     }
 
+    if (client->name == "tmp" && name != "tmp") {
+        server_log_message(name, "INFO", "Updated client name: tmp to " + name);
+    }
     client->name = name;
     //client.ip = ip;
     client->client_num = server.get_server_clients().size();
@@ -108,6 +111,10 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name) {
         return -1;
     }
     server_log_message(name, "RECV_HELO", name);
+
+    if (client->name == "tmp" && name != "tmp") {
+        server_log_message(name, "INFO", "Updated client name: tmp to " + name);
+    }
     client->name = name;
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
     std::string message("SERVERS,");
@@ -304,7 +311,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
 
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
 
-
+        client->update_connections(client_conn);
         if (server.get_server_clients().size() < server.max_clients) {
             for (auto &[_, client_conn] : client->connections) {
                 if (server.client_names.find(client_conn.name) == server.client_names.end()) {
@@ -322,7 +329,6 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             server.delete_client(client->fd);
             return;
         }
-        client->update_connections(client_conn);
     }
 
     if (command.rfind("GETMSG", 0) == 0) {
