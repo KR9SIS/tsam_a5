@@ -145,7 +145,7 @@ class Client {
 
     std::string get_message_for_client() {
         if (messages_for_client.empty()) {
-            return "You have no messages...";
+            return "";
         }
 
         std::string message = messages_for_client.front();

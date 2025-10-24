@@ -64,15 +64,32 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
 
 std::string unframe_message(const std::string &message) {
     
-    auto stx = message.find(static_cast<char>(STX));
-    auto etx = message.rfind(static_cast<char>(ETX));
+    // auto stx = message.find(static_cast<char>(STX));
+    // auto etx = message.rfind(static_cast<char>(ETX));
 
-    // If the message does not need unframing
-    if (stx == std::string::npos || etx == std::string::npos || stx + 1 > etx) {
-        return message;
-    }
+    // // If the message does not need unframing
+    // if (stx == std::string::npos || etx == std::string::npos || stx + 1 > etx) {
+    //     return message;
+    // }
 
-    return message.substr(stx + 1, etx - stx - 1);
+    // return message.substr(stx + 1, etx - stx - 1);
+
+    if (message.size() < 5) return message;
+    if (message[0] != SOH) return message;
+
+    uint16_t net_byte_ord_len; // Length tag comes as 2-bytes in network byte order
+    memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t)); // Copy the 2 bytes into net_byte_ord_len
+    uint16_t len_tag = ntohs(net_byte_ord_len); // Convert net. byte order to host byte order (make sure it's right endian)
+    
+    if (len_tag > message.size() || len_tag < 5) return message;
+
+    // Extract the message
+    size_t message_len = len_tag - 5; // Length of the payload (without the tags)
+    size_t message_start = 4; // <SOH><len><STX> = 4 bytes - Payload starts after that
+
+    if (message.size() < message_start + message_len) return message;
+
+    return message.substr(message_start, message_len);
 }
 
 std::string receive_respons_from_server(int64_t sock_fd) {
@@ -81,7 +98,7 @@ std::string receive_respons_from_server(int64_t sock_fd) {
 
     // Set response timeout
     struct timeval tv;
-    tv.tv_sec = 10;  // 10 second timeout
+    tv.tv_sec = 5;  // 5 second timeout
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
@@ -114,7 +131,12 @@ std::string receive_respons_from_server(int64_t sock_fd) {
     return ""; // No complete frame yet
 }
 
-void get_response(int64_t sock_fd) {
+void get_msg(int64_t sock_fd) {
+    std::string command ="GETMSGS,A5_9"; // Might have to change so it does not include group id
+
+    // Send the command to the server (server command: GETMSGS,<GROUP_ID>)
+    send_command_to_server(sock_fd, command);
+
     // Receive from server
     std::string response = receive_respons_from_server(sock_fd);
 
@@ -122,16 +144,6 @@ void get_response(int64_t sock_fd) {
     if (!response.empty()) {
         client_log_message("RESPONSE", response);
     }
-}
-
-void get_msg(int64_t sock_fd) {
-    std::string command ="GETMSG,A5_9"; // Might have to change so it does not include group id
-
-    // Send the command to the server (server command: GETMSG,<GROUP_ID>)
-    send_command_to_server(sock_fd, command);
-
-    // Get the response back from the server
-    get_response(sock_fd);
 }
 
 void send_msg(int64_t sock_fd) {
@@ -158,8 +170,13 @@ void list_servers(int64_t sock_fd) {
     std::string command = "HELO," + GROUP_ID;
     send_command_to_server(sock_fd, command);
 
-    // Get the response back from the server
-    get_response(sock_fd);
+    // Receive from server
+    std::string response = receive_respons_from_server(sock_fd);
+
+    // Check if the response is empty, and output the response if not
+    if (!response.empty()) {
+        client_log_message("RESPONSE", response);
+    }
 }
 
 void req_status(int64_t sock_fd) {
@@ -167,8 +184,13 @@ void req_status(int64_t sock_fd) {
     std::string command = "STATUSREQ";
     send_command_to_server(sock_fd, command);
 
-    // Get the response back from the server
-    get_response(sock_fd);
+    // Receive from server
+    std::string response = receive_respons_from_server(sock_fd);
+
+    // Check if the response is empty, and output the response if not
+    if (!response.empty()) {
+        client_log_message("RESPONSE", response);
+    }
 }
 
 int64_t set_up_connection(const std::string &ip_string, int port) { // Might have to change ip parameter

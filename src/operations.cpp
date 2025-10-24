@@ -188,37 +188,45 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     return 0;
 }
 
-int16_t get_msg(int64_t client_fd, Server &server) {
-    std::shared_ptr<Client> client = server.get_server_client(client_fd);
-    if(!client){
-        server_log_message("NULL","ERROR", "get_msg Fetched A Null(Deleted) Client");
-        return -1;
-    }
-    if (client->name != "A5_9") {
-        return send_stream(client->get_message_for_client(), *client);
-    }
+// int16_t get_msg(int64_t client_fd, Server &server) {
+//     std::shared_ptr<Client> client = server.get_server_client(client_fd);
+//     if(!client){
+//         server_log_message("NULL","ERROR", "get_msg Fetched A Null(Deleted) Client");
+//         return -1;
+//     }
+//     if (client->name != "A5_9") {
+//         server_log_message(client->name, "ERROR", "Wrong command, correct command is GETMSGS,<group_id", "get_msg");
+//         return send_stream("ERROR,Wrong command, correct command is GETMSGS,<group_id", *client);
+//     }
 
-    return send_stream(server.get_message_for_cnc(), *client);
-}
+//     return send_stream(server.get_message_for_cnc(), *client);
+// }
 
 int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_name) {
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients();
     std::shared_ptr<Client> client = server.get_server_client(client_fd);
 
-    std::string messages;
-    for (auto &[_, cli] : clients) {
-        if (cli->name == group_name) {
-            if (cli->messages_for_client.empty()) {
-                messages.append(group_name).append(" Has no messages...");
-            } else {
-                for (std::string message : cli->messages_for_client) {
-                    message.append(message).append(";");
+    if(!client){
+        server_log_message("NULL","ERROR", "get_msg Fetched A Null(Deleted) Client");
+        return -1;
+    }
+    if (client->name == "A5_9") {
+        return send_stream(server.get_message_for_cnc(), *client);
+    } else {
+        std::string messages;
+        for (auto &[_, cli] : clients) {
+            if (cli->name == group_name) {
+                if (cli->messages_for_client.empty()) {
+                    messages.append(group_name).append(" Has no messages...");
+                } else {
+                    for (std::string message : cli->messages_for_client) {
+                        message.append(message).append(";");
+                    }
                 }
             }
         }
+        return send_stream(messages, *client);
     }
-
-    return send_stream(messages, *client);
 }
 
 
@@ -317,16 +325,15 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         client->update_connections(client_conn);
     }
 
-    if(command.rfind("GETMSGS", 0) == 0){
-        std::vector<std::string> parameters = extract_parameters(command, ",");
-        if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
-            server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
-            return;
-        }
-        get_msgs(client_fd, server, parameters[1]);
-    }
     if (command.rfind("GETMSG", 0) == 0) {
-        get_msg(client_fd, server);
+        if(command.rfind("GETMSGS", 0) == 0){
+            std::vector<std::string> parameters = extract_parameters(command, ",");
+            if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
+                server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
+                return;
+            }
+            get_msgs(client_fd, server, parameters[1]);
+        }
     }
     if (command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
