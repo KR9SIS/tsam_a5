@@ -333,7 +333,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     if (command.rfind("HELO", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
 
-        if (parameters.size() < 2 || parameters[2].empty()) {
+        if (parameters.size() < 2 || parameters[1].empty()) {
             server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...", "message_handler");
             return;
         }
