@@ -80,19 +80,23 @@ std::vector<std::string> extract_frames(const std::string &message) {
     std::vector<std::string> packets;
     size_t pos = 0;
 
-    while (true) {
-        // Find start-of-header and end-of-text
-        size_t soh = message.find(static_cast<char>(SOH), pos);
-        if (soh == std::string::npos) break;
+    while (pos + 4 <= message.size()) {
+        if (message[pos] != SOH) {
+            ++pos;
+            continue;
+        }
 
-        size_t etx = message.find(static_cast<char>(ETX), soh + 1);
-        if (etx == std::string::npos) break; // partial frame; wait for more
+        if (pos + 3 >= message.size()) break; // Incomplete header
 
-        // Push the complete framed packet [SOH ... ETX]
-        packets.push_back(message.substr(soh, etx - soh + 1));
+        uint16_t net_byte_ord_len;
+        memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t));
+        uint16_t len_tag = ntohs(net_byte_ord_len);
 
-        // Continue after this frame
-        pos = etx + 1;
+        if (len_tag < 5 || pos + len_tag > message.size()) break; // Incomplete frame, wait for more data
+
+        // Extract one frame
+        packets.push_back(message.substr(pos, len_tag));
+        pos += len_tag; // Move to the next frame
     }
     return packets;
 }

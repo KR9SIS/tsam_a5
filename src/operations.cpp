@@ -27,14 +27,14 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     std::shared_ptr<Client> client = std::make_shared<Client>();
 
     std::map<int64_t,std::shared_ptr<Client>> clients_copy = server.get_server_clients();
-    for(auto& client : clients_copy){
-        if(!client.second){
-            server_log_message("NULL", "INFO", "Client In Map");
-            continue;
-        }
+    // for(auto& client : clients_copy){
+    //     if(!client.second){
+    //         //server_log_message("NULL", "INFO", "Client In Map");
+    //         continue;
+    //     }
 
-        server_log_message(client.second->name, "INFO", "Client In Map");
-    }
+    //     //server_log_message(client.second->name, "INFO", "Client In Map");
+    // }
 
     if (client->name == "tmp" && name != "tmp") {
         server_log_message(name, "INFO", "Updated client name: tmp to " + name);
@@ -324,16 +324,16 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
                 }
             }
         }
-        if (client_conn.size() > 9) {
-            block_group(client->name);
-            server.delete_client(client->fd);
-            return;
-        }
+        // if (client_conn.size() > 9) {
+        //     block_group(client->name);
+        //     server.delete_client(client->fd);
+        //     return;
+        // }
     }
 
-    if (command.rfind("GETMSSG", 0) == 0) {
+    if (command.rfind("GETMSGS,", 0) == 0) {
             std::vector<std::string> parameters = extract_parameters(command, ",");
-            if (parameters.size() < 2 || parameters.size() > 2) { // Parameters need to be 2
+            if (parameters.size() != 2) { // Parameters need to be 2
                 server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
                 return;
             }
@@ -351,11 +351,11 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     if (command.rfind("HELO", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
 
-        if (parameters.size() < 1) {
+        if (parameters.size() < 2 || parameters[2].empty()) {
             server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To HELO Aborting OPERATION...", "message_handler");
             return;
         }
-        recv_helo(client_fd, server, parameters[1]); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
+        recv_helo(client_fd, server, parameters[1]); // So it does not store HELO as name
     }
     if (command.rfind("KEEPALIVE", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -419,7 +419,16 @@ void handle_client_read(int64_t client_fd, Server &serv) {
 
     std::vector<std::string> messages = extract_frames(client->inbuf);
 
+    // calculate how much of inbuf we consumed
+    size_t consumed_bytes = 0;
+    for (const auto &msg : messages) {
+        consumed_bytes += msg.size();
+    }
+
     std::vector<std::string> commands = extract_payload(messages);
+
+    // Only erase what was fully parsed
+    client->inbuf.erase(0, consumed_bytes);
 
     server_log_message(client->name, "INFO", "Received " + std::to_string(commands.size()) + " Commands");
     // Call message handler on every message

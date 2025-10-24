@@ -16,7 +16,7 @@ constexpr int8_t ETX = 0x03; // End of message
 
 const std::string GROUP_ID = "A5_9";
 
-#define MAX_BUFFER_SIZE 5000
+#define MAX_BUFFER_SIZE 6000
 
 static void handle_signal(int) {
     if (client_logfile.is_open()) {
@@ -36,8 +36,8 @@ std::string frame_message(const std::string &message) {
     framed.reserve(total_len_host);
 
     framed.push_back(SOH);
-    framed.push_back(static_cast<char>((total_len_net >> 8) & 0xFF)); // hi
-    framed.push_back(static_cast<char>( total_len_net & 0xFF)); // lo 
+    framed.push_back(static_cast<char>( total_len_net & 0xFF));        // low byte first
+    framed.push_back(static_cast<char>((total_len_net >> 8) & 0xFF)); // high byte second
     framed.push_back(STX);
     framed.append(message);
     framed.push_back(ETX);
@@ -74,31 +74,39 @@ std::string unframe_message(const std::string &message) {
 
     // return message.substr(stx + 1, etx - stx - 1);
 
-    if (message.size() < 5) return message;
-    if (message[0] != SOH) return message;
+    if (message.size() < 5 || message[0] != SOH) return message;
 
     uint16_t net_byte_ord_len; // Length tag comes as 2-bytes in network byte order
     memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t)); // Copy the 2 bytes into net_byte_ord_len
     uint16_t len_tag = ntohs(net_byte_ord_len); // Convert net. byte order to host byte order (make sure it's right endian)
     
-    if (len_tag > message.size() || len_tag < 5) return message;
+    if (len_tag < 5 || len_tag > message.size()) {
+        uint16_t swapped = (net_byte_ord_len >> 8) | (net_byte_ord_len << 5);
+        uint16_t len_tag_swapped = ntohs(swapped);
+
+        if (len_tag_swapped >= 5 && len_tag_swapped <= message.size()) {
+            len_tag = len_tag_swapped;
+        } else {
+            return message; // Message is invalid
+        }
+    }
 
     // Extract the message
     size_t message_len = len_tag - 5; // Length of the payload (without the tags)
     size_t message_start = 4; // <SOH><len><STX> = 4 bytes - Payload starts after that
 
-    if (message.size() < message_start + message_len) return message;
+    if (message.size() < message_start + message_len) return message; // Message is incomplete
 
     return message.substr(message_start, message_len);
 }
 
-std::string receive_respons_from_server(int64_t sock_fd) {
+std::vector<std::string> receive_respons_from_server(int64_t sock_fd) {
     char buffer[MAX_BUFFER_SIZE];
     memset(buffer, 0, MAX_BUFFER_SIZE); // Clear buffer
 
     // Set response timeout
     struct timeval tv;
-    tv.tv_sec = 5;  // 5 second timeout
+    tv.tv_sec = 7;  // 5 second timeout
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
@@ -114,36 +122,51 @@ std::string receive_respons_from_server(int64_t sock_fd) {
         exit(0); // Since the connection has been closed
     } else if (bytes_received < 0) {
         client_log_message("TIMEOUT", "Response from server timed out");
-        return ""; // So it goes back to the loop
+        return {}; // So it goes back to the loop
     }
 
     // Make sure to have a complete frame and if so unframe it
     static std::string buffer_accum;
     buffer_accum.append(buffer, bytes_received);
 
-    size_t soh = buffer_accum.find(SOH);
-    size_t etx = buffer_accum.find(ETX, soh);
-    if (soh != std::string::npos && etx != std::string::npos && etx > soh) {
-        std::string frame = buffer_accum.substr(soh, etx - soh + 1);
-        buffer_accum.erase(0, etx + 1);
-        std::string message = unframe_message(frame); // Unframe the message received from the server
+    std::vector<std::string> messages;
+
+    while (true) {
+        size_t soh = buffer_accum.find(SOH);
+        if (soh == std::string::npos) break;
+
+        if (buffer_accum.size() < soh + 5) break; // Not enough data yeat for full header
+        
+        uint16_t net_len;
+        memcpy(&net_len, &buffer_accum[soh + 1], sizeof(uint16_t));
+        uint16_t total_len = ntohs(net_len);
+
+        if (buffer_accum.size() < soh + total_len) break; // Not a full frame
+    
+        std::string frame = buffer_accum.substr(soh, total_len);
+        buffer_accum.erase(0, soh + total_len);
+
+        std::string message = unframe_message(frame);
+        messages.push_back(message);
     }
-    return ""; // No complete frame yet
+
+    return messages;
+}
+
+void get_responses(int64_t sock_fd) {
+    std::vector<std::string> responses = receive_respons_from_server(sock_fd);
+    for (const auto &response : responses) {
+        if (!response.empty()) {
+            client_log_message("RESPONSE", response);
+        }
+    }
 }
 
 void get_msg(int64_t sock_fd) {
-    std::string command ="GETMSGS,A5_9"; // Might have to change so it does not include group id
+    std::string command ="GETMSGS," + GROUP_ID; // Might have to change so it does not include group id
 
     // Send the command to the server (server command: GETMSGS,<GROUP_ID>)
     send_command_to_server(sock_fd, command);
-
-    // Receive from server
-    std::string response = receive_respons_from_server(sock_fd);
-
-    // Check if the response is empty, and output the response if not
-    if (!response.empty()) {
-        client_log_message("RESPONSE", response);
-    }
 }
 
 void send_msg(int64_t sock_fd) {
@@ -159,7 +182,7 @@ void send_msg(int64_t sock_fd) {
     std::getline(std::cin, message);
 
     // Send the command to the server (server command:
-    // SENDMSG,<TP_GROUP_ID>,<FROM_GROUP_ID>,<message contents>)
+    // SENDMSG,<TO_GROUP_ID>,<FROM_GROUP_ID>,<message contents>)
     std::string command = "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
     
     send_command_to_server(sock_fd, command);
@@ -169,28 +192,12 @@ void list_servers(int64_t sock_fd) {
     // To get the list of servers we need to send a HELO command to the server
     std::string command = "HELO," + GROUP_ID;
     send_command_to_server(sock_fd, command);
-
-    // Receive from server
-    std::string response = receive_respons_from_server(sock_fd);
-
-    // Check if the response is empty, and output the response if not
-    if (!response.empty()) {
-        client_log_message("RESPONSE", response);
-    }
 }
 
 void req_status(int64_t sock_fd) {
     // Send the command to the server
     std::string command = "STATUSREQ";
     send_command_to_server(sock_fd, command);
-
-    // Receive from server
-    std::string response = receive_respons_from_server(sock_fd);
-
-    // Check if the response is empty, and output the response if not
-    if (!response.empty()) {
-        client_log_message("RESPONSE", response);
-    }
 }
 
 int64_t set_up_connection(const std::string &ip_string, int port) { // Might have to change ip parameter
@@ -246,6 +253,7 @@ int main(int argc, char *argv[]) {
 
     std::signal(SIGINT, handle_signal);
     std::signal(SIGTERM, handle_signal);
+
     list_servers(sock_fd);
 
     new_file("CLIENT");
@@ -283,6 +291,8 @@ int main(int argc, char *argv[]) {
         } else {
             client_log_message("INVALID", "Invalid command...");
         }
+
+        get_responses(sock_fd);
     }
 
     // Try to close the socket connection after client quit

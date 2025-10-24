@@ -111,11 +111,9 @@ class Server {
 
     void start() {
         dispatch(send_helos, std::ref(*this));
+        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "Instr_1");
+        dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "Instr_2");
         while (true) {
-            if (clients.size() == 0) {
-                dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5001, "Instr_1");
-                dispatch(open_client_socket, std::ref(*this), "130.208.246.98", 5002, "Instr_2");
-            }
             int16_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
                 server_log_message("A5_9" ,"ERROR","Failed to wait for events", "server.start");
@@ -215,6 +213,7 @@ class Server {
             close(client_fd);
             return -1;
         }
+
         return 0;
     }
 
@@ -245,11 +244,11 @@ class Server {
         std::cout << "Num clients:" << clients.size() << std::endl;
         for(auto& client : clients){
             if(!client.second){
-                server_log_message("NULL", "INFO", "Client In Map");
+                //server_log_message("NULL", "INFO", "Client In Map");
                 continue;
             }
 
-            server_log_message(client.second->name, "INFO", "Client In Map");
+            //server_log_message(client.second->name, "INFO", "Client In Map");
         }
 
         // Accept new client connection
@@ -283,37 +282,29 @@ class Server {
     }
 
     void delete_client(int64_t client_fd) {
-        std::shared_ptr<Client> client;
-        {
-            // Hold server lock only while we modify server state
-            std::lock_guard<std::mutex> lk(server_mutex);
-            auto it = clients.find(client_fd);
-            if (it == clients.end())
-                return;
-            client = it->second;
-            clients.erase(client->fd);
-            client_names.erase(client->name);
+        std::lock_guard<std::mutex> lk(server_mutex);
+        auto it = clients.find(client_fd);
+        if (it == clients.end()) {
+            return;
+        }
+        std::shared_ptr<Client> client = it->second;
+        std::lock_guard<std::mutex> client_lk(client->get_mutex());
+        clients.erase(client->fd);
+        client_names.erase(client->name);
 
-            // adjust indices while still holding server lock
-            for (auto it2 = clients.begin(); it2 != clients.end(); ++it2) {
-                if (it2->second->client_num >= client->client_num) {
-                    it2->second->client_num--;
-                }
+        client->close_con(epoll_fd);
+
+        for (auto it = clients.begin(); it != clients.end(); ++it) {
+            if (it->second->client_num >= client->client_num) {
+                it->second->client_num--;
             }
-        } // release server_mutex here
-
-        // Now perform client-specific cleanup under the client mutex
-        if (client) {
-            std::lock_guard<std::mutex> clk(client->client_mutex);
-            client->close_con(epoll_fd);
         }
     }
 
     /*Dispatches a new thread running handler with the supplied arguments*/
     template <typename Func, typename... Args>
     void dispatch(Func&& handler, Args&&... arguments) {
-        std::thread client_thread(std::forward<Func>(handler),
-                                  std::forward<Args>(arguments)...);
+        std::thread client_thread(std::forward<Func>(handler), std::forward<Args>(arguments)...);
         client_thread.detach();
     }
 
@@ -339,7 +330,7 @@ class Server {
         if (it == clients.end()) {
             return nullptr;
         }
-        return it->second; 
+        return it->second;
     }
 
     std::map<int64_t, std::shared_ptr<Client>> &get_server_client_unsafe_ref(){
