@@ -283,21 +283,29 @@ class Server {
     }
 
     void delete_client(int64_t client_fd) {
-        auto it = clients.find(client_fd);
-        if (it == clients.end()) {
-            return;
-        }
-        std::shared_ptr<Client> client = it->second;
-        std::scoped_lock lk(server_mutex, client->client_mutex);
-        clients.erase(client->fd);
-        client_names.erase(client->name);
+        std::shared_ptr<Client> client;
+        {
+            // Hold server lock only while we modify server state
+            std::lock_guard<std::mutex> lk(server_mutex);
+            auto it = clients.find(client_fd);
+            if (it == clients.end())
+                return;
+            client = it->second;
+            clients.erase(client->fd);
+            client_names.erase(client->name);
 
-        client->close_con(epoll_fd);
-
-        for (auto it = clients.begin(); it != clients.end(); ++it) {
-            if (it->second->client_num >= client->client_num) {
-                it->second->client_num--;
+            // adjust indices while still holding server lock
+            for (auto it2 = clients.begin(); it2 != clients.end(); ++it2) {
+                if (it2->second->client_num >= client->client_num) {
+                    it2->second->client_num--;
+                }
             }
+        } // release server_mutex here
+
+        // Now perform client-specific cleanup under the client mutex
+        if (client) {
+            std::lock_guard<std::mutex> clk(client->client_mutex);
+            client->close_con(epoll_fd);
         }
     }
 
