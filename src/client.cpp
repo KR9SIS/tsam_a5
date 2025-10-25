@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <stdio.h>
 #include <iostream>
 #include <netinet/in.h>
@@ -63,7 +64,7 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
 }
 
 std::string unframe_message(const std::string &message) {
-    
+
     // auto stx = message.find(static_cast<char>(STX));
     // auto etx = message.rfind(static_cast<char>(ETX));
 
@@ -79,7 +80,7 @@ std::string unframe_message(const std::string &message) {
     uint16_t net_byte_ord_len; // Length tag comes as 2-bytes in network byte order
     memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t)); // Copy the 2 bytes into net_byte_ord_len
     uint16_t len_tag = ntohs(net_byte_ord_len); // Convert net. byte order to host byte order (make sure it's right endian)
-    
+
     if (len_tag < 5 || len_tag > message.size()) {
         uint16_t swapped = (net_byte_ord_len >> 8) | (net_byte_ord_len << 5);
         uint16_t len_tag_swapped = ntohs(swapped);
@@ -106,7 +107,7 @@ std::vector<std::string> receive_respons_from_server(int64_t sock_fd) {
 
     // Set response timeout
     struct timeval tv;
-    tv.tv_sec = 7;  // 5 second timeout
+    tv.tv_sec = 30;  // 30 second timeout
     tv.tv_usec = 0; // Make sure there are no extra microseconds
 
     // Check if respond timeout fails, when setting it
@@ -136,13 +137,13 @@ std::vector<std::string> receive_respons_from_server(int64_t sock_fd) {
         if (soh == std::string::npos) break;
 
         if (buffer_accum.size() < soh + 5) break; // Not enough data yeat for full header
-        
+
         uint16_t net_len;
         memcpy(&net_len, &buffer_accum[soh + 1], sizeof(uint16_t));
         uint16_t total_len = ntohs(net_len);
 
         if (buffer_accum.size() < soh + total_len) break; // Not a full frame
-    
+
         std::string frame = buffer_accum.substr(soh, total_len);
         buffer_accum.erase(0, soh + total_len);
 
@@ -184,7 +185,7 @@ void send_msg(int64_t sock_fd) {
     // Send the command to the server (server command:
     // SENDMSG,<TO_GROUP_ID>,<FROM_GROUP_ID>,<message contents>)
     std::string command = "SENDMSG," + group_id + "," + GROUP_ID + "," + message;
-    
+
     send_command_to_server(sock_fd, command);
 }
 
@@ -233,6 +234,13 @@ int64_t set_up_connection(const std::string &ip_string, int port) { // Might hav
     return sock_fd;
 }
 
+void recv_responses(int64_t sock_fd){
+    while(true){
+        get_responses(sock_fd);
+        sleep(60);
+    }
+}
+
 int main(int argc, char *argv[]) {
     // Check for right number of arguments - Gives error if more or less than 3
     // arguments Arguments: ./client 130.208.246.98 4009 - execute program,
@@ -257,7 +265,6 @@ int main(int argc, char *argv[]) {
     list_servers(sock_fd);
 
     new_file("CLIENT");
-
 
     // After connect enter a loop to keep connection open and handle commands until user wants to exit
     while (true && sock_fd != -1) {
