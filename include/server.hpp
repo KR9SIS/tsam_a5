@@ -7,6 +7,7 @@
 #include "operations.hpp"
 #include "block_bots.hpp"
 #include <arpa/inet.h>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -111,12 +112,16 @@ class Server {
     }
 
     void start() {
+        int sleep_ms = 1;
+        std::vector<std::pair<std::shared_ptr<Client>, uint32_t>> triggered;
         dispatch(send_helos, std::ref(*this));
+        dispatch(keep_alive_loop,std::ref(*this),std::ref(main_thread_lock));
         while (true) {
             if (clients.size() == 0) {
                 open_client_socket(std::ref(*this), "130.208.246.98", 5001, "Instr_1", std::ref(main_thread_lock));
                 open_client_socket(std::ref(*this), "130.208.246.98", 5002, "Instr_2", std::ref(main_thread_lock));
             }
+
             int16_t num_events;
             if ((num_events = epoll_wait(epoll_fd, poll_events, MAX_EVENTS, EPOLL_BLOCK)) < 0) {
                 server_log_message("A5_9" ,"ERROR","Failed to wait for events", "server.start");
@@ -124,11 +129,11 @@ class Server {
                 exit(-1);
             }
 
-
             for (int16_t i = 0; i < num_events; ++i) {
-                if (check_for_new_client(i)) {
+                if (check_for_new_client(i)){
                     register_client(main_thread_lock);
-                } else {
+                }
+                else {
                     int64_t fd = get_event_socket(i);
                     uint32_t events = get_event_status(i);
                     std::shared_ptr<Client> client = get_server_client(fd, main_thread_lock);
@@ -152,47 +157,29 @@ class Server {
                     }
 
                     uint32_t new_events = 0;
-                    // If EPOLLIN is set, it's ready to read
-                    if (get_event_status(i) & EPOLLIN) {
-                        new_events |= EPOLLIN;
-                    }
+                    if (get_event_status(i) & EPOLLIN) new_events |= EPOLLIN;
+                    if ((get_event_status(i) & EPOLLOUT) && !client->outbound_messages.empty()) new_events |= EPOLLOUT;
 
-                    // If EPOLLOUT is set, it's ready to write
-                    if ((get_event_status(i) & EPOLLOUT) && !client->outbound_messages.empty()) {
-                        new_events |= EPOLLOUT;
-                    }
-
-                    if(!main_thread_lock.owns_lock()){
-                        main_thread_lock.lock();
-                    }
-
-                    client->notify(new_events);
-
-                    if(main_thread_lock.owns_lock()){
-                        main_thread_lock.unlock();
+                    if(new_events != 0){
+                        triggered.push_back(std::make_pair(client, new_events));
                     }
                 }
             }
 
-            // Implementation so every client/server gets one keepalive per minute but distributed evenly through that minute
-            // This is to not overload the server since sending it all at the same time is too much
-            static time_t lastKeepAlive = 0;
-            static size_t keepalive_index = 0;
-
-            time_t now = time(nullptr);
-
-            if (!clients.empty()) {
-                double interval = 60.0 / clients.size(); // To distribute evenly
-
-                if (difftime(now, lastKeepAlive) >= interval) {
-                    auto it = std::next(clients.begin(), keepalive_index % clients.size());
-                    if (it->second->fd >= 0) {
-                        send_keepalive_helper(*it->second);
-                    }
-                    keepalive_index++;
-                    lastKeepAlive = now;
+            if(!triggered.empty()){
+                if(!main_thread_lock.owns_lock()) main_thread_lock.lock();
+                for(auto &[client, events] : triggered){
+                    client->notify(events);
                 }
+                main_thread_lock.unlock();
+                triggered.clear();
+                sleep_ms = 1;
             }
+            else{
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+                sleep_ms = std::min(sleep_ms * 2, 50);
+            }
+
         }
     }
 

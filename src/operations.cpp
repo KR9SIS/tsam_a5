@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -15,6 +16,7 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 #include <utility>
 #include <vector>
 #include <cstring>
@@ -71,13 +73,15 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
 }
 
 void send_helos(Server &server) {
-    std::unique_lock<std::mutex> server_lock(server.get_mutex());
+    std::unique_lock<std::mutex> server_lock(server.get_mutex(), std::defer_lock);
     server_log_message("EVERYONE", "INFO", "Sending Helos To Everyone");
     while (true) {
-        for (auto &[_, client] : server.get_server_clients(server_lock)) {
+        std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(server_lock);
+        int interval_ms = 500 / std::max(1, (int)clients.size());
+        for (auto &[_, client] : clients) {
             send_helo(*client);
+            std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
         }
-        sleep(120);
     }
 }
 
@@ -166,6 +170,24 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, st
     return send_stream(message, *client);
 }
 
+void keep_alive_loop(Server& server, std::unique_lock<std::mutex>& lock){
+    // Implementation so every client/server gets one keepalive per minute but distributed evenly through that minute
+    // This is to not overload the server since sending it all at the same time is too much
+    static size_t keepalive_index = 0;
+
+    while(true){
+        std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
+        if (!clients.empty()) {
+            int interval = std::max(1, static_cast<int>(60000.0 / clients.size())); // To distribute evenly
+            auto it = std::next(clients.begin(), keepalive_index % clients.size());
+            if (it->second->fd >= 0) {
+                send_keepalive_helper(*it->second);
+            }
+            keepalive_index++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+        }
+    }
+}
 
 // Does the same thing as keepalive just minimises errors and sends at seperate occations not all at same time
 int16_t send_keepalive_helper(Client &client) {
@@ -266,7 +288,7 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
     msg_copy.append(to_group).append(",").append(from_group).append(",");
     msg_copy.append(message_tokens[2]);
     msg_copy.append("\x04");
-    
+
     if (message_tokens.size() < 4) {
         msg_copy.append("A5_9");
         clients.begin()->second->push_message(msg_copy);
