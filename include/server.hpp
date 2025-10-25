@@ -281,7 +281,7 @@ class Server {
             server_log_message(client->name, "ERROR","Failed to accept client connection", "Server.register_client");
             return;
         } else {
-            server_log_message(client->name, "INFO", "Successfully accepted connection from client");
+            server_log_message(client->name, "INFO", std::string("Connecting To Client [IP]: ").append(inet_ntoa(client->addr.sin_addr)).append(" [ID]: tmp [PORT]: ").append(std::to_string(client->addr.sin_port)));
         }
 
         client->client_num = clients.size();
