@@ -177,7 +177,7 @@ int16_t send_keepalive_helper(Client &client) {
 
 
 int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
-    client.pending_messages = num_messages;
+    client.pending_messages += num_messages;
     if (num_messages > 0) {
         server_log_message(client.name, "INFO", "Storing message from client");
         client.push_message("GETMSGS,A5_09");
@@ -195,6 +195,7 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
     }
     if (client->name == "A5_9") {
         client->push_message(server.get_message_for_cnc(lock));
+        client->pending_messages--;
         return 0;
 
     } else {
