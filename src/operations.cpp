@@ -178,7 +178,10 @@ int16_t send_keepalive_helper(Client &client) {
 
 int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     client.pending_messages = num_messages;
-
+    if (num_messages > 0) {
+        server_log_message(client.name, "INFO", "Storing message from client");
+        client.push_message("GETMSGS,A5_09");
+    }
     return 0;
 }
 
@@ -191,7 +194,9 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
         return -1;
     }
     if (client->name == "A5_9") {
-        return send_stream(server.get_message_for_cnc(lock), *client);
+        client->push_message(server.get_message_for_cnc(lock));
+        return 0;
+
     } else {
         std::string messages;
         for (auto &[_, cli] : clients) {
@@ -205,7 +210,8 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
                 }
             }
         }
-        return send_stream(messages, *client);
+        client->push_message(messages);
+        return 0;
     }
 }
 
