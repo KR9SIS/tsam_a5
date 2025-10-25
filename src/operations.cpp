@@ -456,14 +456,19 @@ void handle_client_write(int64_t client_fd, Server &serv, std::unique_lock<std::
         return;
     }
 
-    std::string msg = client->front_message();
-
-    if (msg != "") {
-        if ((send_stream(msg, *client)) != -1) {
-            client->pop_message();
-            client->remove_first_message();
-        };
+    while(true){
+        std::string msg = client->front_message();
+        if(msg == ""){
+            break;
+        }
+        if (msg != "") {
+            if ((send_stream(msg, *client)) != -1) {
+                client->pop_message();
+                client->remove_first_message();
+            };
+        }
     }
+
 }
 
 void client_worker(Server& server,int64_t client_fd){
@@ -492,7 +497,6 @@ void client_worker(Server& server,int64_t client_fd){
         }
 
         if(events & EPOLLOUT){
-            // WARNING: Segfault Is Happening Here Most Likely After Close
             handle_client_write(client_fd, server, server_lock);
         }
 
