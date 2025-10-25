@@ -245,7 +245,7 @@ class Server {
             lock.lock();
         }
 
-        if (clients.size() == MAX_CLIENTS) { // If client connections are at max capacity deleta a client
+        if (clients.size() == MAX_CLIENTS) { // If client connections are at max capacity delete a client
             bool client_deleted = false;
             // If an already connected client is an instructor delete that client
             for (auto it = clients.begin(); it != clients.end(); ++it) {
