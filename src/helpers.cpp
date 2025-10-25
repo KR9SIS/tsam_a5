@@ -7,8 +7,7 @@
 #include <cstring>
 
 int16_t send_stream(const std::string &stream_str, Client& client) {
-    constexpr uint16_t frame_overhead =
-        1 /*SOH*/ + 2 /*len*/ + 1 /*STX*/ + 1 /*ETX*/;
+    constexpr uint16_t frame_overhead = 1 + 2 + 1 + 1; // Size of: SOH + len + STX + ETX
     constexpr uint16_t MAX_STREAM_LEN = 5000;
 
     if (stream_str.size() > MAX_STREAM_LEN - frame_overhead) {
@@ -48,6 +47,7 @@ int16_t send_stream(const std::string &stream_str, Client& client) {
 }
 
 std::vector<std::string> extract_parameters(const std::string payload, const std::string delimiter) {
+    // Extracts the parameters in a command received
 
     std::vector<std::string> params;
 
@@ -74,10 +74,10 @@ std::vector<std::string> extract_parameters(const std::string payload, const std
 ///
 /// Example:
 ///     <SOH><length><STX><message><ETX><SOH><length><STX><message><ETX>
-///
 ///     =>
 ///     {<SOH><length><STX><message><ETX>,<SOH><length><STX><message><ETX>}
 std::vector<std::string> extract_frames(const std::string &message) {
+    // Extracts all frames received from a server / client
     std::vector<std::string> packets;
     size_t pos = 0;
 
@@ -102,7 +102,7 @@ std::vector<std::string> extract_frames(const std::string &message) {
     return packets;
 }
 
-// Each frame is: <SOH><length><STX><message><ETX>
+// Extracts the payload (command/message) from each frame: <SOH><length><STX><message><ETX>
 // Since the length is in network byte order the <length> is: [byte1][byte2] - len of fram (including tags)
 std::vector<std::string> extract_payload(const std::vector<std::string> &messages) {
     std::vector<std::string> payloads;
@@ -127,17 +127,6 @@ std::vector<std::string> extract_payload(const std::vector<std::string> &message
         std::string payload = message.substr(payload_start, payload_len);
         payloads.push_back(payload);
     }
-
-    // for (const std::string &message : messages) {
-    //     size_t STX_pos = message.find(STX);
-    //     size_t ETX_pos = message.find(ETX);
-
-    //     if (STX_pos == std::string::npos || ETX_pos == std::string::npos || STX_pos + 1 > ETX_pos) {
-    //         continue; // malformed/partial; skip
-    //     }
-
-    //     payloads.push_back(message.substr(STX_pos + 1, ETX_pos - STX_pos - 1));
-    // }
 
     return payloads;
 }

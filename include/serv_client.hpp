@@ -39,7 +39,7 @@ class Client {
 
   public:
     std::mutex client_mutex;
-    std::queue<std::string> outbound_messages;
+    std::queue<std::string> outbound_messages; // Stores commands to be sent
     std::string inbuf; // Accumulates partial incoming data between recv() calls
 
     std::string name;
@@ -48,7 +48,7 @@ class Client {
     int8_t client_num;
     uint16_t pending_messages;
     std::map<std::string, conn> connections;
-    std::vector<std::string> messages_for_client;
+    std::vector<std::string> messages_for_client; // Stores messages that have not yet been sent to the client
 
     Client() : name("tmp"), fd(-1), events(0) {};
 
@@ -115,6 +115,7 @@ class Client {
                 continue;
             }
 
+            // Tries to connect to a server from a received servers command, if all information is available
             else if (this->name != parts[0] && parts.size() >= 3 && parts[1] != "?") {
                 struct conn new_conn;
                 new_conn.name = parts[0];

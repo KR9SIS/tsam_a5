@@ -36,6 +36,7 @@ std::string frame_message(const std::string &message) {
     std::string framed;
     framed.reserve(total_len_host);
 
+    // Add all frame components and the message to the new string
     framed.push_back(SOH);
     framed.push_back(static_cast<char>( total_len_net & 0xFF));        // low byte first
     framed.push_back(static_cast<char>((total_len_net >> 8) & 0xFF)); // high byte second
@@ -64,16 +65,7 @@ void send_command_to_server(int64_t sock_fd, const std::string &command) {
 }
 
 std::string unframe_message(const std::string &message) {
-
-    // auto stx = message.find(static_cast<char>(STX));
-    // auto etx = message.rfind(static_cast<char>(ETX));
-
-    // // If the message does not need unframing
-    // if (stx == std::string::npos || etx == std::string::npos || stx + 1 > etx) {
-    //     return message;
-    // }
-
-    // return message.substr(stx + 1, etx - stx - 1);
+    // Unframe the message using the length instead of tags, to make sure not to unframe it incorrectly
 
     if (message.size() < 5 || message[0] != SOH) return message;
 
@@ -164,7 +156,8 @@ void get_responses(int64_t sock_fd) {
 }
 
 void get_msg(int64_t sock_fd) {
-    std::string command ="GETMSGS," + GROUP_ID; // Might have to change so it does not include group id
+    // Gets messages the server is storing for the client
+    std::string command ="GETMSGS," + GROUP_ID;
 
     // Send the command to the server (server command: GETMSGS,<GROUP_ID>)
     send_command_to_server(sock_fd, command);
@@ -196,12 +189,12 @@ void list_servers(int64_t sock_fd) {
 }
 
 void req_status(int64_t sock_fd) {
-    // Send the command to the server
+    // Get the status of the server using the STATUSREQ command
     std::string command = "STATUSREQ";
     send_command_to_server(sock_fd, command);
 }
 
-int64_t set_up_connection(const std::string &ip_string, int port) { // Might have to change ip parameter
+int64_t set_up_connection(const std::string &ip_string, int port) {
     // Create the socket
     int64_t sock_fd;
 
@@ -268,7 +261,7 @@ int main(int argc, char *argv[]) {
 
     // After connect enter a loop to keep connection open and handle commands until user wants to exit
     while (true && sock_fd != -1) {
-        // We available commands
+        // Print to the terminal available commands
         std::cout << "\nAvailable commands:\n" 
         << "(1) GETMSG (Get a message from the server for your group)\n" 
         << "(2) SENDMSG (Let server deliver a message to a group)\n" 

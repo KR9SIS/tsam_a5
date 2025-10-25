@@ -18,7 +18,8 @@ static struct InitLog {
     }
 } _initLog;
 
-// Type: is it response received or command sent
+// Logs information to the servers terminal, and to the servers log file
+// Type: Type of message to be logged (fx. INFO or SENT)
 void client_log_message(const std::string &type, const std::string &message) {
     std::lock_guard<std::mutex> lock(client_log_mutex);
 
@@ -31,19 +32,21 @@ void client_log_message(const std::string &type, const std::string &message) {
     char* date_time = ctime(&now);
     date_time[strlen(date_time) - 1] = '\0'; // So it does not add a newline
 
-    std::cout << "[" << date_time << "] [" << type << "] " << message << std::endl;
+    std::cout << "[" << date_time << "] [" << type << "] " << message << std::endl; // Print to the terminal
 
-    client_logfile << "[" << date_time << "] [" << type << "] " << message << "\n";
+    client_logfile << "[" << date_time << "] [" << type << "] " << message << "\n"; // Write to the log file
 
     client_logfile.flush();
 }
 
+// Logs information to the servers terminal, and to the servers log file
+// Type: Type of message to be logged (fx. INFO or SENT)
 void server_log_message(const std::string &client, const std::string &type, const std::string &message, const std::string &func) {
     std::lock_guard<std::mutex> lock(server_log_mutex);
 
     if (!server_logfile.is_open()) {
         server_logfile.open(SERVER_LOGFILE, std::ios::out | std::ios::app);
-        server_logfile.setf(std::ios::unitbuf); // reapply auto-flush after reopen
+        server_logfile.setf(std::ios::unitbuf); // Reapply auto-flush after reopen
     }
     
     time_t now = time(0);
@@ -51,32 +54,32 @@ void server_log_message(const std::string &client, const std::string &type, cons
     date_time[strlen(date_time) - 1] = '\0'; // So it does not add a newline
 
     if (type == "ERROR") {
-    std::cout << "[" << date_time << "] [" << client << "] [" << type << "] [" << func << "] " << message << std::endl;
+    std::cout << "[" << date_time << "] [" << client << "] [" << type << "] [" << func << "] " << message << std::endl; // Print to the terminal
 
-    server_logfile << "[" << date_time << "] [" << client << "] [" << type << "] [" << func << "] " << message << "\n";
+    server_logfile << "[" << date_time << "] [" << client << "] [" << type << "] [" << func << "] " << message << "\n"; // Write to the file
     } else {
-    std::cout << "[" << date_time << "] [" << client << "] [" << type << "] " << message << std::endl;
+    std::cout << "[" << date_time << "] [" << client << "] [" << type << "] " << message << std::endl; // Print to the terminal
 
-    server_logfile << "[" << date_time << "] [" << client << "] [" << type << "] " << message << "\n";
+    server_logfile << "[" << date_time << "] [" << client << "] [" << type << "] " << message << "\n"; // Write to the file
     }
 
     server_logfile.flush();
 }
 
-// TODO: Change this function so It makes a new file each day
+// Creates a new log file, with the name depending on if it's for the client or server
 void new_file(const std::string &is_server_or_client) {
     if (is_server_or_client == "CLIENT") {
         client_logfile.close();
-        std::rename(CLIENT_LOGFILE, "../logs/client_log_old.txt");
+        std::rename(CLIENT_LOGFILE, "../logs/client_log_old.txt"); // Rename the existing file
     
-        client_logfile.open(CLIENT_LOGFILE, std::ios::out | std::ios::app);
+        client_logfile.open(CLIENT_LOGFILE, std::ios::out | std::ios::app); // Create and open a new file
         client_logfile.setf(std::ios::unitbuf);
     } else {
         server_logfile.close();
 
-        std::rename(SERVER_LOGFILE, "A5_9_server_logs_old.txt");
+        std::rename(SERVER_LOGFILE, "A5_9_server_logs_old.txt"); // Rename the existing file
     
-        server_logfile.open(SERVER_LOGFILE, std::ios::out | std::ios::app);
+        server_logfile.open(SERVER_LOGFILE, std::ios::out | std::ios::app); // Create and open a new file
         server_logfile.setf(std::ios::unitbuf);
     }
 }
