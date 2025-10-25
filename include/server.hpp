@@ -280,6 +280,8 @@ class Server {
         if ((client->fd = accept(server_fd, (struct sockaddr *)&client->addr, &client_add_len)) < 0) {
             server_log_message(client->name, "ERROR","Failed to accept client connection", "Server.register_client");
             return;
+        } else {
+            server_log_message(client->name, "INFO", "Successfully accepted connection from client");
         }
 
         client->client_num = clients.size();
