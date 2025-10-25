@@ -281,3 +281,15 @@ messages the server has for them.
 ```text
 [Sat Oct 25 17:16:44 2025] [A5_1] [RESPONSE] A5_1 sent SENDMSG,A5_9,A5_1,Hallo fancy manA5_1
 ```
+
+### d) + e) + Indirect Bot
+
+```text
+[Sat Oct 25 00:32:56 2025] [A5_42] [RESPONSE] A5_42 sent SENDMSG,Instr_2,A5_42,Hello thereA5_16,A5_153,A5_152,A5_151
+[Sat Oct 25 00:32:56 2025] [Instr_2] [SENT] SENDMSG,Instr_2,A5_42,Hello thereA5_16,A5_153,A5_152,A5_151
+```
+
+```text
+[Sat Oct 25 00:32:56 2025] [A5_42] [RESPONSE] A5_42 sent SENDMSG,Instr_2,A5_8,I don't know how to parse messages correctlyA5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_152,A5_151
+[Sat Oct 25 00:32:56 2025] [Instr_2] [SENT] SENDMSG,Instr_2,A5_8,I don't know how to parse messages correctlyA5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_152,A5_151
+```
