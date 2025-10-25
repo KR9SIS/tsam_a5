@@ -7,6 +7,7 @@
 #include "operations.hpp"
 #include "block_bots.hpp"
 #include <arpa/inet.h>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -145,6 +146,11 @@ class Server {
                         socklen_t len = sizeof(error);
                         getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
                         server_log_message(client->name, "ERROR","Error On Socket " + client->name + " Error Code: " + std::to_string(error), "server.start");
+                        if(error == EPIPE) continue;// Write To Socket That Wasn't Ready
+                        if(error == ETIMEDOUT) block_group(client->name);// Connection Timeout
+                        if(error == ECONNREFUSED) block_group(client->name);// Connection Refused
+                        if(error == ENETUNREACH) block_group(client->name);
+
 
                         delete_client(client->fd, main_thread_lock);
                         continue;

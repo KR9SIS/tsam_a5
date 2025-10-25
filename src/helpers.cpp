@@ -1,6 +1,7 @@
 #include "helpers.h"
 #include "client_logs.hpp"
 #include "serv_client.hpp"
+#include <cstdint>
 #include <cstdio>
 #include <mutex>
 #include <string>
@@ -102,6 +103,13 @@ std::vector<std::string> extract_frames(const std::string &message) {
     return packets;
 }
 
+uint16_t get_message_length(const std::string& message){
+    uint16_t net_byte_ord_len; // Length tag comes as 2-bytes in network byte order
+    memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t)); // Copy the 2 bytes into net_byte_ord_len
+    uint16_t len_tag = ntohs(net_byte_ord_len); // Convert net. byte order to host byte order (make sure it's right endian)
+    return len_tag;
+}
+
 // Extracts the payload (command/message) from each frame: <SOH><length><STX><message><ETX>
 // Since the length is in network byte order the <length> is: [byte1][byte2] - len of fram (including tags)
 std::vector<std::string> extract_payload(const std::vector<std::string> &messages) {
@@ -112,10 +120,8 @@ std::vector<std::string> extract_payload(const std::vector<std::string> &message
 
         if (message[0] != SOH) continue; // Invalid, packages must start with SOH
 
-        uint16_t net_byte_ord_len; // Length tag comes as 2-bytes in network byte order
-        memcpy(&net_byte_ord_len, &message[1], sizeof(uint16_t)); // Copy the 2 bytes into net_byte_ord_len
-        uint16_t len_tag = ntohs(net_byte_ord_len); // Convert net. byte order to host byte order (make sure it's right endian)
-        
+        uint16_t len_tag = get_message_length(message); // Convert net. byte order to host byte order (make sure it's right endian)
+
         if (len_tag > message.size() || len_tag < 5) continue;
 
         // Extract payload
@@ -130,3 +136,4 @@ std::vector<std::string> extract_payload(const std::vector<std::string> &message
 
     return payloads;
 }
+

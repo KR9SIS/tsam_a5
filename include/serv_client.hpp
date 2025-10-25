@@ -21,12 +21,6 @@ class Client {
     std::atomic<bool> closed;
     int64_t epoll_fd;
 
-    struct conn {
-        std::string name;
-        std::string ip;
-        uint16_t port;
-    };
-
     void toggle_epoll_write(bool enable){
         epoll_event ev{};
         ev.data.fd = fd;
@@ -38,6 +32,13 @@ class Client {
     }
 
   public:
+    struct conn {
+        std::string name;
+        std::string ip;
+        uint16_t port;
+    };
+
+    std::atomic<bool> helo_pending{false};
     std::mutex client_mutex;
     std::queue<std::string> outbound_messages; // Stores commands to be sent
     std::string inbuf; // Accumulates partial incoming data between recv() calls
@@ -91,10 +92,7 @@ class Client {
     }
 
     void update_connections(std::vector<std::string> conns) {
-        server_log_message(name, "PROCESSING", "Updating server connections");
-        
         connections.clear();
-
         if (conns.empty()) {
             return;
         }

@@ -1,6 +1,7 @@
 #ifndef HELPER_FUNCTIONS
 #define HELPER_FUNCTIONS
 
+#include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -15,5 +16,6 @@ extern std::vector<std::string> extract_parameters(const std::string payload, co
 extern std::vector<std::string> extract_frames(const std::string &message);
 extern std::vector<std::string>
 extract_payload(const std::vector<std::string> &messages);
+extern uint16_t get_message_length(const std::string& message);
 
 #endif

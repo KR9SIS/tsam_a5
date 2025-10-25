@@ -2,11 +2,13 @@
 #define SERVEROPERATIONS
 
 #include "operations.hpp"
+#include "block_bots.hpp"
 #include "client_logs.hpp"
 #include "helpers.h"
 #include "server.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <map>
@@ -77,7 +79,7 @@ void send_helos(Server &server) {
     server_log_message("EVERYONE", "INFO", "Sending Helos To Everyone");
     while (true) {
         std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(server_lock);
-        int interval_ms = 500 / std::max(1, (int)clients.size());
+        int interval_ms = 2000 / std::max(1, (int)clients.size());
         for (auto &[_, client] : clients) {
             send_helo(*client);
             std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
@@ -96,8 +98,9 @@ void send_statusreqs(Server &server) {
 }
 
 void send_helo(Client &client) {
-    //log_message("PROCESSING", "Sending HELO to " + client.name);
+    if(client.helo_pending.load(std::memory_order_acquire)) return;
     client.push_message("HELO,A5_9");
+    client.helo_pending.store(true, std::memory_order_release);
 }
 
 int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, std::unique_lock<std::mutex>& lock) {
@@ -337,34 +340,37 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     server_log_message(client->name, "RESPONSE", client->name + " sent " + command);
 
     std::string parsed_command = command.substr(0, command.find(","));
+    server_log_message("SYSTEM", "DEBUG", "Parsed Command Processed " + parsed_command);
 
     if (parsed_command.rfind("SERVERS", 0) == 0) {
         std::string rest = command.substr(strlen("SERVERS,"));
 
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
+        std::vector<Client::conn> candidate_connections;
 
         client->update_connections(client_conn);
 
         if (server.get_server_clients(lock).size() < server.max_clients) {
             for (auto &[_, client_conn] : client->connections) {
-                if (server.client_names.find(client_conn.name) == server.client_names.end()) {
-                    server_log_message(client->name, "INFO", "Connecting To Client [IP]: " + client_conn.ip + " [ID]: " + client_conn.name + " [PORT]: " + std::to_string(client_conn.port));
-                    open_client_socket(server, client_conn.ip, client_conn.port, client_conn.name, lock);
-                }
+                if(is_blocked(client_conn.name))
+                    continue;
 
-                if (server.client_names.size() == server.max_clients) {
+                if(client_conn.name.find("A5") == std::string::npos)
+                    continue;
+
+                if (server.client_names.find(client_conn.name) == server.client_names.end())
+                    candidate_connections.push_back(client_conn);
+
+                if (server.client_names.size() + candidate_connections.size() >= server.max_clients)
                     break;
-                }
             }
-        }
-        if (client_conn.size() > 9) {
-            block_group(client->name);
-            server.delete_client(client->fd, lock);
-            return;
-        }
 
+            for(auto& new_client : candidate_connections){
+                server_log_message("SYSTEM", "INFO", "Connecting To Client [IP]: " + new_client.ip + " [ID]: " + new_client.name + " [PORT]: " + std::to_string(new_client.port));
+                open_client_socket(server, new_client.ip, new_client.port, new_client.name, lock);
+            }
 
-        client->update_connections(client_conn);
+        }
     }
 
     if (parsed_command.rfind("GETMSGS,", 0) == 0) {
@@ -463,7 +469,6 @@ void handle_client_read(int64_t client_fd, Server &serv, std::unique_lock<std::m
     // Only erase what was fully parsed
     client->inbuf.erase(0, consumed_bytes);
 
-    server_log_message(client->name, "INFO", "Received " + std::to_string(commands.size()) + " Commands");
     // Call message handler on every message
     for (auto it = commands.begin(); it != commands.end(); ++it) {
         message_handler(client->fd, serv, *it, lock);
@@ -506,6 +511,10 @@ void handle_client_write(int64_t client_fd, Server &serv, std::unique_lock<std::
             if ((send_stream(msg, *client)) != -1) {
                 client->pop_message();
                 client->remove_first_message();
+                std::string command = msg.substr(0, msg.find(","));
+                if(command == "HELO"){
+                    client->helo_pending.store(false, std::memory_order_release);
+                }
             };
         }
     }
