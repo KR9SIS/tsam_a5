@@ -216,29 +216,36 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
     }
 }
 
-std::string parse_send_msg(const std::string& message){
-    size_t first = message.find(',');
-    if (first == std::string::npos) return "";
+std::vector<std::string> parse_send_msg(const std::string& message){
+    std::vector<std::string> sections;
+    size_t group_to_pos = strlen("SENDMSG,");
+    size_t group_from_pos = message.find(",",group_to_pos) + 1;
+    size_t message_start = message.find(",", group_from_pos) + 1;
+    size_t eot_pos = message.rfind("\x04");
+    size_t end_of_packet = strlen(message.c_str()) - 1;
 
-    size_t second = message.find(',', first + 1);
-    if (second == std::string::npos) return "";
-
-    size_t third = message.find(',', second + 1);
-    if (third == std::string::npos) return "";
-
-    // Everything after the 3rd comma is the message
-    return message.substr(third + 1);
+    sections.push_back(message.substr(group_to_pos, (group_from_pos - group_to_pos) - 1));
+    sections.push_back(message.substr(group_from_pos, (message_start - group_from_pos) - 1));
+    if(eot_pos != std::string::npos){
+        sections.push_back(message.substr(message_start, eot_pos - message_start));
+        sections.push_back(message.substr(eot_pos + 1));
+    }
+    else{
+        sections.push_back(message.substr(message_start));
+    }
+    return sections;
 }
 
-int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message, std::unique_lock<std::mutex>& lock) {
-    std::string parsed_message = parse_send_msg(message);
+int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message,std::unique_lock<std::mutex>& lock) {
+    // <STH><Length><STX>SENDMSG,<group_to>,<group_from>,<message><EOT><HOPS><ETX>
+    std::vector<std::string> message_tokens = parse_send_msg(message);
 
     if (to_group == "A5_9") {
-        std::string message_with_group = "[" + from_group + "] " + parsed_message;
-        server.store_message_for_cnc(parsed_message, lock);
+        std::string message_with_group = "[" + message_tokens[2] + "] " + message_tokens[2];
+        server.store_message_for_cnc(message_tokens[2], lock);
     }
 
-    std::string message_with_group = "[FROM: " + from_group + "] " + parsed_message;
+    std::string message_with_group = "[FROM: " + message_tokens[2] + "] " + message_tokens[2];
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     for (auto &[_, client] : clients) {
         if (client->name == to_group) {
@@ -255,16 +262,19 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
         }
     }
 
-    std::string msg_copy(message);
-    ssize_t hops_idx = msg_copy.find('\x04');
-    if (hops_idx == std::string::npos) {
-        msg_copy.push_back('\x04');
+    std::string msg_copy("SENDMSG,");
+    msg_copy.append(to_group).append(",").append(from_group).append(",");
+    msg_copy.append(message_tokens[2]);
+    msg_copy.append("\x04");
+    
+    if (message_tokens.size() < 4) {
         msg_copy.append("A5_9");
         clients.begin()->second->push_message(msg_copy);
     } else {
-        std::vector<std::string> recipients = extract_parameters(msg_copy.substr(hops_idx), ",");
+        std::string recipients = message_tokens[3];
+        msg_copy.append(recipients);
         for (auto &[_, client] : clients) {
-            if (std::find(recipients.begin(), recipients.end(), client->name) == recipients.end()) {
+            if (recipients.find(client->name) == std::string::npos) {
                 msg_copy.append(",A5_9");
                 client->push_message(msg_copy);
                 break;
@@ -304,7 +314,9 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     }
     server_log_message(client->name, "RESPONSE", client->name + " sent " + command);
 
-    if (command.rfind("SERVERS", 0) == 0) {
+    std::string parsed_command = command.substr(0, command.find(","));
+
+    if (parsed_command.rfind("SERVERS", 0) == 0) {
         std::string rest = command.substr(strlen("SERVERS,"));
 
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
@@ -333,7 +345,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         client->update_connections(client_conn);
     }
 
-    if (command.rfind("GETMSGS,", 0) == 0) {
+    if (parsed_command.rfind("GETMSGS,", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() != 2) { // Parameters need to be 2
             server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
@@ -344,7 +356,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
             lock.unlock(); // NOTE: get_msgs does not unlock, just returns so we give back the lock here
         }
     }
-    if (command.rfind("SENDMSG", 0) == 0) {
+    if (parsed_command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() <= 3) { // Parameters need to be 4
             server_log_message(client->name, "ERROR","Wrong Number Of Parameters Passed To SENDMSG Aborting OPERATION...", "message_handler");
@@ -353,7 +365,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
 
         send_msg(server, parameters[1], parameters[2], command, lock);
     }
-    if (command.rfind("HELO", 0) == 0) {
+    if (parsed_command.rfind("HELO", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
 
         if (parameters.size() < 2 || parameters[1].empty()) {
@@ -362,7 +374,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         }
         recv_helo(client_fd, server, parameters[1], lock); // So it does not store HELO as name - MIGHT HAVE TO CHANGE
     }
-    if (command.rfind("KEEPALIVE", 0) == 0) {
+    if (parsed_command.rfind("KEEPALIVE", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
 
         if (parameters.size() == 2 && !parameters[1].empty() && std::all_of(parameters[1].begin(), parameters[1].end(), ::isdigit)) {
@@ -376,7 +388,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         }
     }
 
-    if(command.rfind("STATUSREQ", 0) == 0){
+    if(parsed_command.rfind("STATUSREQ", 0) == 0){
         resp_status(server, client->fd, lock);
     }
 }
