@@ -79,7 +79,7 @@ void send_helos(Server &server) {
     server_log_message("EVERYONE", "INFO", "Sending Helos To Everyone");
     while (true) {
         std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(server_lock);
-        int interval_ms = 10000 / std::max(1, (int)clients.size());
+        int interval_ms = 40000 / std::max(1, (int)clients.size());
         for (auto &[_, client] : clients) {
             if(client->name == "A5_9" || client->name == "A5_09"){ 
                 std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
