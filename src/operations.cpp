@@ -220,7 +220,7 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     client.pending_messages += num_messages;
     if (num_messages > 0) {
         server_log_message(client.name, "INFO", "Storing message from client");
-        client.push_message("GETMSGS,A5_09");
+        client.push_message("GETMSGS,A5_09"); // CHANGE?
     }
     return 0;
 }

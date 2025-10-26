@@ -1,89 +1,28 @@
-[Fri Oct 24 10:24:37 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:24:37 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_24,130.208.246.98,4024;ORACLE,130.208.246.98,65535;A5_9,130.208.240.14,45700;
-[Fri Oct 24 10:24:37 2025] [RESPONSE] HELO,A5_9
-[Fri Oct 24 10:24:50 2025] [SENT] SENDMSG,A5_24,A5_9,Hellooooo
-[Fri Oct 24 10:24:50 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:24:56 2025] [SENT] HELO,A5_9
-[Fri Oct 24 10:24:56 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;
-A5_24,130.208.246.98,4024;ORACLE,130.208.246.98,65535;A5_9,130.208.240.14,45700;
-[Fri Oct 24 10:25:01 2025] [SENT] STATUSREQ
-[Fri Oct 24 10:25:01 2025] [RESPONSE] STATUSRESP,Instr_1,0,Instr_2,0,A5_24,0,ORACLE,0,A5_9,0,A5_9,0
-[Fri Oct 24 10:25:17 2025] [SENT] HELO,A5_9
-[Fri Oct 24 10:25:17 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_24,130.208.246.98,4024;ORACLE,130.208.246.98,65535;A5_9,130.208.240.14,45700;
-[Fri Oct 24 10:25:25 2025] [SENT] STATUSREQ
-[Fri Oct 24 10:25:25 2025] [RESPONSE] KEEPALIVE,0
-[Fri Oct 24 10:25:27 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:25:33 2025] [RESPONSE] STATUSRESP,Instr_1,0,Instr_2,0,A5_24,0,ORACLE,0,A5_9,0,A5_1,0,A5_9,0
-[Fri Oct 24 10:25:41 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:25:41 2025] [RESPONSE] hæA5_1
-[Fri Oct 24 10:25:58 2025] [SENT] SENDMSG,A5_1,A5_9,Hallooo
-[Fri Oct 24 10:26:06 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:26:51 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:26:51 2025] [RESPONSE] [A5_1] hæA5_1
-[Fri Oct 24 10:26:53 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:26:53 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:26:53 2025] [RESPONSE] HELO,A5_9
-[Fri Oct 24 10:26:54 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:27:01 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:27:21 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:27:21 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:27:21 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:28:13 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:28:13 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:28:15 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:28:22 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:28:26 2025] [SENT] HELO,A5_9
-[Fri Oct 24 10:28:31 2025] [RESPONSE] KEEPALIVE,0
-[Fri Oct 24 10:28:31 2025] [RESPONSE] [A5_1] sorry for the looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong messageA5_1
-[Fri Oct 24 10:28:31 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:28:31 2025] [RESPONSE] sorry for the loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong messageA5_1
-[Fri Oct 24 10:28:54 2025] [SENT] SENDMSG,3,A5_9,
-[Fri Oct 24 10:28:54 2025] [RESPONSE] HELO,A5_9
-[Fri Oct 24 10:28:58 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:28:58 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:29:00 2025] [SENT] HELO,A5_9
-[Fri Oct 24 10:29:00 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_24,130.208.246.98,4024;ORACLE,130.208.246.98,65535;A5_9,130.208.240.14,45700;A5_1,130.208.246.98,33492;A5_1,130.208.246.98,4001;
-[Fri Oct 24 10:29:15 2025] [SENT] SENDMSG,A5_1,A5_9,Whatuuuuuuuuup!
-[Fri Oct 24 10:29:22 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:30:01 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:30:09 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:30:13 2025] [SENT] HELO,A5_9
-[Fri Oct 24 10:30:20 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:30:39 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:30:46 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:31:23 2025] [SENT] HELO,A5_9
-[Fri Oct 24 10:31:23 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:31:23 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_24,130.208.246.98,4024;ORACLE,130.208.246.98,65535;A5_9,130.208.240.14,45700;A5_1,130.208.246.98,33492;A5_1,130.208.246.98,4001;
-[Fri Oct 24 10:31:23 2025] [RESPONSE] HELO,A5_9
-[Fri Oct 24 10:31:38 2025] [SENT] SENDMSG,A5_1,A5_9,Whatuuuuup
-[Fri Oct 24 10:31:38 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_24,130.208.246.98,4024;ORACLE,130.208.246.98,65535;A5_9,130.208.240.14,45700;A5_1,130.208.246.98,33492;A5_1,130.208.246.98,4001;A5_1,130.208.246.98,40018;
-[Fri Oct 24 10:31:54 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:31:54 2025] [RESPONSE] No Messages!!
-[Fri Oct 24 10:32:24 2025] [SENT] SENDMSG,A5_1,A5_9,Instr_1,Hellooooooooo
-[Fri Oct 24 10:32:24 2025] [RESPONSE] KEEPALIVE,0
-[Fri Oct 24 10:32:27 2025] [SENT] GETMSGS,A5_9
-[Fri Oct 24 10:32:34 2025] [TIMEOUT] Response from server timed out
-[Fri Oct 24 10:32:55 2025] [CLOSE] Connection to server has closed
+[Sun Oct 26 14:21:14 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:21:14 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_9,89.17.128.138,47430;
+[Sun Oct 26 14:21:14 2025] [RESPONSE] HELO,A5_9
+[Sun Oct 26 14:21:22 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:21:22 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:21:24 2025] [SENT] HELO,A5_9
+[Sun Oct 26 14:21:24 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:21:25 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:21:25 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;Instr_2,130.208.246.98,65535;A5_9,89.17.128.138,47430;
+[Sun Oct 26 14:21:32 2025] [SENT] STATUSREQ
+[Sun Oct 26 14:21:32 2025] [RESPONSE] STATUSRESP,Instr_1,0,Instr_2,0,A5_9,65533,A5_9,65533
+[Sun Oct 26 14:22:01 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:22:01 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:22:04 2025] [SENT] HELO,A5_9
+[Sun Oct 26 14:22:04 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:22:05 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:22:05 2025] [RESPONSE] SERVERS,A5_9,130.208.246.98,4009;Instr_1,130.208.246.98,65535;A5_9,89.17.128.138,47430;
+[Sun Oct 26 14:22:09 2025] [SENT] STATUSREQ
+[Sun Oct 26 14:22:09 2025] [RESPONSE] STATUSRESP,Instr_1,0,Instr_2,0,A5_9,65531,A5_9,65531
+[Sun Oct 26 14:22:18 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:22:19 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:22:19 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:23:02 2025] [SENT] GETMSGS,A5_9
+[Sun Oct 26 14:23:16 2025] [RESPONSE] No Messages!!
+[Sun Oct 26 14:23:21 2025] [CLOSE] Connection to server has closed
 
-[Fri Oct 24 10:32:55 2025] [INFO] Closing socket...
-[Fri Oct 24 10:32:55 2025] [CLOSE] Connection to server has been closed
+[Sun Oct 26 14:23:21 2025] [INFO] Closing socket...
+[Sun Oct 26 14:23:21 2025] [CLOSE] Connection to server has been closed
