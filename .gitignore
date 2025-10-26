@@ -4,3 +4,4 @@ obj
 logs/
 A5_9_server_logs.txt
 A5_9_server_logs_old.txt
+*logs*

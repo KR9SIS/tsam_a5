@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 constexpr uint32_t MAX_MESSAGES = 10000; // NOTE: uint32_t just in case we want to change to something bigger
 constexpr int8_t MAX_CLIENTS = 8;
@@ -33,6 +34,7 @@ class Server {
     std::unique_lock<std::mutex> main_thread_lock;
     std::map<int64_t, std::shared_ptr<Client>> clients;
     std::queue<std::string> message_store;
+    std::map<std::string, std::queue<std::string>> group_messages;
 
     int64_t server_fd, epoll_fd;
     epoll_event event, poll_events[MAX_EVENTS];
@@ -112,11 +114,58 @@ class Server {
         }
     }
 
+    size_t group_num_messages(const std::string& group, std::unique_lock<std::mutex>& lock){
+        if(!lock.owns_lock()){
+            lock.lock();
+        }
+        auto group_queue = group_messages.find(group);
+        if(group_queue == group_messages.end()) return 0;
+        size_t check = group_queue->second.size();
+        lock.unlock();
+        return check;
+    }
+
+    void store_message_for_group(const std::string& group, const std::string& message, std::unique_lock<std::mutex>& lock){
+        if(!lock.owns_lock()){
+            lock.lock();
+        }
+
+        auto it = group_messages.find(group);
+        if (it != group_messages.end()) {
+            it->second.push(message);
+        }
+
+        lock.unlock();
+    }
+
+    std::string fetch_message_for_group(const std::string& group, std::unique_lock<std::mutex>& lock){
+        if(!lock.owns_lock()){
+            lock.lock();
+        }
+        auto group_queue = group_messages.find(group);
+        if(group_queue == group_messages.end()) return "";
+        if(group_queue->second.empty()) return "";
+        std::string message_copy = group_queue->second.front();
+        lock.unlock();
+        return message_copy;
+    }
+
+    void pop_message_for_group(const std::string& group, std::unique_lock<std::mutex>& lock){
+        if(!lock.owns_lock()){
+            lock.lock();
+        }
+        auto group_queue = group_messages.find(group);
+        if(group_queue == group_messages.end()) return;
+        if(group_queue->second.empty()) return;
+        group_queue->second.pop();
+        lock.unlock();
+    }
+
     void start() {
         int sleep_ms = 1;
         std::vector<std::pair<std::shared_ptr<Client>, uint32_t>> triggered;
         dispatch(send_helos, std::ref(*this));
-        dispatch(keep_alive_loop,std::ref(*this),std::ref(main_thread_lock));
+        dispatch(keep_alive_loop, std::ref(*this),std::ref(main_thread_lock));
         while (true) {
             if (clients.size() == 0) {
                 open_client_socket(std::ref(*this), "130.208.246.98", 5001, "Instr_1", std::ref(main_thread_lock));

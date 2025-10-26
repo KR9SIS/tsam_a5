@@ -79,7 +79,7 @@ void send_helos(Server &server) {
     server_log_message("EVERYONE", "INFO", "Sending Helos To Everyone");
     while (true) {
         std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(server_lock);
-        int interval_ms = 3000 / std::max(1, (int)clients.size());
+        int interval_ms = 10000 / std::max(1, (int)clients.size());
         for (auto &[_, client] : clients) {
             if(client->name == "A5_9" || client->name == "A5_09"){ 
                 std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
@@ -183,13 +183,16 @@ void keep_alive_loop(Server& server, std::unique_lock<std::mutex>& lock){
     while(true){
         std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
         if (!clients.empty()) {
-            int interval = std::max(1, static_cast<int>(60000.0 / clients.size())); // To distribute evenly
-            auto it = std::next(clients.begin(), keepalive_index % clients.size());
-            if (it->second->fd >= 0) {
-                send_keepalive_helper(*it->second);
+            int interval_ms = std::max(1, static_cast<int>(60000.0 / clients.size())); // To distribute evenly
+            for (auto &[_, client] : clients) {
+                if(client->name == "A5_9" || client->name == "A5_09"){ 
+                    std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+                    continue;
+                }
+
+                send_keepalive_helper(*client);
+                std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
             }
-            keepalive_index++;
-            std::this_thread::sleep_for(std::chrono::milliseconds(interval));
         }
     }
 }
@@ -198,7 +201,9 @@ void keep_alive_loop(Server& server, std::unique_lock<std::mutex>& lock){
 int16_t send_keepalive_helper(Client &client) {
     if (client.fd < 0) return -1; // skip closed sockets
 
-    client.append_message(std::string("KEEPALIVE,").append(std::to_string(client.pending_messages)));
+    if(client.keepalive_pending.load(std::memory_order_acquire)) return 0;
+    client.push_message(std::string("KEEPALIVE,").append(std::to_string(client.pending_messages)));
+    client.keepalive_pending.store(true, std::memory_order_release);
     return 0;
 }
 
@@ -221,24 +226,17 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
         return -1;
     }
     if (client->name == "A5_9") {
+        server_log_message("SYSTEM", "INFO", "SENDING MESSAGE TO CNC");
         client->push_message(server.get_message_for_cnc(lock));
         client->pending_messages--;
         return 0;
 
     } else {
         std::string messages;
-        for (auto &[_, cli] : clients) {
-            if (cli->name == group_name) {
-                if (cli->messages_for_client.empty()) {
-                    messages.append(group_name).append(" Has no messages...");
-                } else {
-                    for (std::string message : cli->messages_for_client) {
-                        message.append(message).append(";");
-                    }
-                }
-            }
+        for (size_t i = 0; i < server.group_num_messages(group_name, lock); i++) {
+            client->push_message(server.fetch_message_for_group(group_name, lock));
+            server.pop_message_for_group(group_name,lock);
         }
-        client->push_message(messages);
         return 0;
     }
 }
@@ -264,31 +262,47 @@ std::vector<std::string> parse_send_msg(const std::string& message){
 }
 
 int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message,std::unique_lock<std::mutex>& lock) {
-    // <STH><Length><STX>SENDMSG,<group_to>,<group_from>,<message><EOT><HOPS><ETX>
+    //SENDMSG,<group_to>,<group_from>,<message><EOT><HOPS>
     std::vector<std::string> message_tokens = parse_send_msg(message);
 
     if (to_group == "A5_9" || to_group == "A5_09") {
         std::string message_with_group = "[" + message_tokens[2] + "] " + message_tokens[2];
-        server.store_message_for_cnc(message_tokens[2], lock);
+        server.store_message_for_cnc(message_with_group, lock);
+        return 0;
     }
 
-    std::string message_with_group = "[FROM: " + message_tokens[2] + "] " + message_tokens[2];
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
-    for (auto &[_, client] : clients) {
+    std::shared_ptr<Client> buddy = nullptr;
+
+    for (auto&[_, client] : clients) {
+        server_log_message("SYSTEM", "INFO", "Checking Clients For Recipient " + client->name);
         if (client->name == to_group) {
+            server_log_message("SYSTEM", "INFO","Recipient Directly Connected Forwarding Message Straight To" + to_group);
             client->push_message(message);
-            client->append_message(message_with_group);
             return 0;
         }
-        for (auto &[_, conn] : client->connections) {
+        for (auto&[_, conn] : client->connections) {
             if (conn.name == to_group) {
-                client->push_message(message);
-                client->append_message(message_with_group);
-                return 0;
+                buddy = client;
+                break;
             }
         }
     }
 
+    if(buddy){
+        server_log_message("SYSTEM", "INFO","Recipient Not Directly Connected Forwarding To Someone Who Knows" + to_group);
+        buddy->push_message(message);
+        return 0;
+    }
+
+    if(strlen(message.c_str()) + 5 > 5000){
+        server_log_message("SYSTEM", "INFO","Message Maximum Hops Reached, Storing Message For Group " + to_group);
+        size_t eot_pos = message.rfind("\x04");
+        server.store_message_for_group(to_group, message.substr(0, eot_pos), lock);
+        return 0;
+    }
+
+    server_log_message("SYSTEM", "INFO","Recipient Completely Unknown, Adding Hop");
     std::string msg_copy("SENDMSG,");
     msg_copy.append(to_group).append(",").append(from_group).append(",");
     msg_copy.append(message_tokens[2]);
@@ -339,7 +353,6 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
     server_log_message(client->name, "RESPONSE", client->name + " sent " + command);
 
     std::string parsed_command = command.substr(0, command.find(","));
-    server_log_message("SYSTEM", "DEBUG", "Parsed Command Processed " + parsed_command);
 
     if (parsed_command.rfind("SERVERS", 0) == 0) {
         std::string rest = command.substr(strlen("SERVERS,"));
@@ -392,16 +405,13 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
         }
     }
 
-    if (parsed_command.rfind("GETMSGS,", 0) == 0) {
+    if (parsed_command.rfind("GETMSGS", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
         if (parameters.size() != 2) { // Parameters need to be 2
             server_log_message(client->name, "ERROR","No Group ID Passed to GETMSGS Aporting Operation...", "message_handler");
             return;
         }
         get_msgs(client_fd, server, parameters[1], lock);
-        if(lock.owns_lock()){
-            lock.unlock(); // NOTE: get_msgs does not unlock, just returns so we give back the lock here
-        }
     }
     if (parsed_command.rfind("SENDMSG", 0) == 0) {
         std::vector<std::string> parameters = extract_parameters(command, ",");
@@ -533,6 +543,9 @@ void handle_client_write(int64_t client_fd, Server &serv, std::unique_lock<std::
                 std::string command = msg.substr(0, msg.find(","));
                 if(command == "HELO"){
                     client->helo_pending.store(false, std::memory_order_release);
+                }
+                if(command == "KEEPALIVE"){
+                    client->keepalive_pending.store(false, std::memory_order_release);
                 }
             };
         }

@@ -39,6 +39,7 @@ class Client {
         uint16_t port;
     };
 
+    std::atomic<bool> keepalive_pending{false};
     std::atomic<bool> helo_pending{false};
     std::mutex client_mutex;
     std::queue<std::string> outbound_messages; // Stores commands to be sent
