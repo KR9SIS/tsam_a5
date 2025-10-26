@@ -118,11 +118,13 @@ class Server {
     */
 
     size_t group_num_messages(const std::string& group, std::unique_lock<std::mutex>& lock){
-        if(!lock.owns_lock()){
-            lock.lock();
-        }
+        if(!lock.owns_lock()) lock.lock(); 
+
         auto group_queue = group_messages.find(group);
-        if(group_queue == group_messages.end()) return 0;
+        if(group_queue == group_messages.end()){
+            lock.unlock();
+            return 0;
+        }
         size_t check = group_queue->second.size();
         lock.unlock();
         return check;
@@ -146,8 +148,14 @@ class Server {
             lock.lock();
         }
         auto group_queue = group_messages.find(group);
-        if(group_queue == group_messages.end()) return "";
-        if(group_queue->second.empty()) return "";
+        if(group_queue == group_messages.end()){ 
+            lock.unlock();
+            return "";
+        }
+        if(group_queue->second.empty()){ 
+            lock.unlock();
+            return "";
+        }
         std::string message_copy = group_queue->second.front();
         lock.unlock();
         return message_copy;
@@ -158,8 +166,14 @@ class Server {
             lock.lock();
         }
         auto group_queue = group_messages.find(group);
-        if(group_queue == group_messages.end()) return;
-        if(group_queue->second.empty()) return;
+        if(group_queue == group_messages.end()){ 
+            lock.unlock();
+            return;
+        }
+        if(group_queue->second.empty()){ 
+            lock.unlock();
+            return;
+        }
         group_queue->second.pop();
         lock.unlock();
     }
@@ -168,7 +182,7 @@ class Server {
         int sleep_ms = 1;
         std::vector<std::pair<std::shared_ptr<Client>, uint32_t>> triggered;
         dispatch(send_helos, std::ref(*this));
-        dispatch(keep_alive_loop, std::ref(*this),std::ref(main_thread_lock));
+        dispatch(keep_alive_loop, std::ref(*this));
         while (true) {
             // Start by initialiseing a connection with the instructor servers
             if (clients.size() == 0) {

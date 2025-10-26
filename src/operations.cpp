@@ -182,11 +182,11 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, st
     return send_stream(message, *client, lock);
 }
 
-void keep_alive_loop(Server& server, std::unique_lock<std::mutex>& lock){
+void keep_alive_loop(Server& server){
     // Implementation so every client/server gets one keepalive per minute but distributed evenly through that minute
     // This is to not overload the server since sending it all at the same time is too much
     static size_t keepalive_index = 0;
-
+    std::unique_lock<std::mutex> lock(server.get_mutex(), std::defer_lock);
     while(true){
         std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
         if (!clients.empty()) {

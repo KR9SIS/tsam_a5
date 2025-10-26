@@ -21,4 +21,4 @@ extern void send_helos(Server &server);
 extern void send_statusreqs(Server &server);
 extern int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::string name, std::unique_lock<std::mutex>& lock);
 extern void client_worker(Server&, int64_t client_fd);
-extern void keep_alive_loop(Server&, std::unique_lock<std::mutex>&);
+extern void keep_alive_loop(Server&);
