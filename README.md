@@ -282,8 +282,9 @@ messages the server has for them.
 [Sat Oct 25 17:16:44 2025] [A5_1] [RESPONSE] A5_1 sent SENDMSG,A5_9,A5_1,Hallo fancy manA5_1
 ```
 
-### d) + e) + Indirect Bot
+### d) + e) + Indirect Bot + chatty bott
 
+**Group A5_42 - Chatty bot and Indirect bot:**
 ```text
 [Sat Oct 25 00:32:56 2025] [A5_42] [RESPONSE] A5_42 sent SENDMSG,Instr_2,A5_42,Hello thereA5_16,A5_153,A5_152,A5_151
 [Sat Oct 25 00:32:56 2025] [Instr_2] [SENT] SENDMSG,Instr_2,A5_42,Hello thereA5_16,A5_153,A5_152,A5_151
@@ -294,11 +295,7 @@ messages the server has for them.
 [Sat Oct 25 00:32:56 2025] [Instr_2] [SENT] SENDMSG,Instr_2,A5_8,I don't know how to parse messages correctlyA5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_16,A5_153,A5_152,A5_151
 ```
 
-## Bonus logs
-
-## c) Chatty bot
-
-**Group A5_60:**
+**Group A5_60 - Chatty bot:**
 ```text
 [Sun Oct 26 03:41:55 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_60,A5_9,Gimme another automated message plz :3
 [Sun Oct 26 03:41:55 2025] [Instr_1] [SENT] SENDMSG,A5_60,A5_9,Gimme another automated message plz :3
@@ -307,11 +304,92 @@ messages the server has for them.
 [Sun Oct 26 03:44:58 2025] [A5_60] [RESPONSE] A5_60 sent SENDMSG,A5_9,A5_60,Hello from A5_60 automated!
 ```
 
-**Group A5_1:**
+**Group A5_1 - Chatty bot:**
 ```text
-[Fri Oct 24 10:24:50 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_24,A5_9,Hellooooo
 [Fri Oct 24 10:25:32 2025] [A5_1] [RESPONSE] A5_1 sent SENDMSG,A5_9,A5_1,hæA5_1
 [Fri Oct 24 10:27:30 2025] [A5_1] [RESPONSE] A5_1 sent SENDMSG,A5_9,A5_1,sorry for the loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong messageA5_1
 ```
 
-**Group :**
+**Group A5_52 - Chatty bot:**
+```text
+[Sun Oct 26 17:28:11 2025] [A5_52] [RESPONSE] A5_52 sent SENDMSG,A5_9,A5_52,Hello from group 52!
+[Sun Oct 26 17:30:09 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_52,A5_9,Hilloooo group 52 :3 zanku for msg!!
+[Sun Oct 26 17:30:09 2025] [A5_52] [SENT] SENDMSG,A5_52,A5_9,Hilloooo group 52 :3 zanku for msg!!
+
+[Sun Oct 26 17:52:59 2025] [A5_52] [RESPONSE] A5_52 sent SENDMSG,A5_9,Instr_2,What do you do if a message contains some weird characters and another message, such as FSENDMSG,Instr_2,A5_9,I don't know how to parse messages correctly?
+
+[Sun Oct 26 17:53:25 2025] [A5_52] [RESPONSE] A5_52 sent SENDMSG,A5_9,Instr_2,Sorry about this really looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong message!
+
+[Sun Oct 26 17:58:10 2025] [A5_52] [RESPONSE] A5_52 sent SENDMSG,A5_9,Instr_2,What do you do if a message contains some weird characters and another message, such as FSENDMSG,Instr_2,A5_9,I don't know how to parse messages correctly?
+
+[Sun Oct 26 17:08:35 2025] [A5_52] [RESPONSE] A5_52 sent SENDMSG,A5_9,A5_52,some message
+```
+
+**Group 16 - Chatty bot and Indirect bot:**
+```text
+[Sun Oct 26 17:35:48 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_16,A5_9,Heloooo A5_16!! hope youre having a lovely day :3
+[Sun Oct 26 17:35:48 2025] [A5_16] [SENT] SENDMSG,A5_16,A5_9,Heloooo A5_16!! hope youre having a lovely day :3
+[Sun Oct 26 17:39:09 2025] [A5_16] [RESPONSE] A5_16 sent SENDMSG,,A5_16,A5_16
+[Sun Oct 26 17:39:09 2025] [Instr_1] [SENT] SENDMSG,,A5_16,A5_16,A5_9
+[Sun Oct 26 17:39:39 2025] [A5_16] [RESPONSE] A5_16 sent SENDMSG,A5_70,A5_16,hellohelloA5_16
+```
+
+**Group 70 - Chatty bot and Indirect bot:**
+```text
+[Sun Oct 26 17:39:39 2025] [A5_16] [RESPONSE] A5_16 sent SENDMSG,A5_70,A5_16,hellohelloA5_16
+[Sun Oct 26 17:39:39 2025] [Instr_1] [SENT] SENDMSG,A5_70,A5_16,hellohelloA5_16,A5_9
+```
+
+**Group A5_24 - Chatty bot:**
+```text
+[Fri Oct 24 10:24:50 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_24,A5_9,Hellooooo
+```
+
+**Group A5_35 - Chatty bot and Indirect bot:**
+```text
+[Sun Oct 26 16:29:53 2025] [A5_35] [RESPONSE] A5_35 sent SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:29:53 2025] [A5_35] [SENT] SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:29:53 2025] [A5_35] [RESPONSE] A5_35 sent SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:29:53 2025] [A5_35] [SENT] SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:31:55 2025] [A5_35] [RESPONSE] A5_35 sent SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:31:55 2025] [A5_35] [SENT] SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:31:55 2025] [A5_35] [RESPONSE] A5_35 sent SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:31:55 2025] [A5_35] [SENT] SENDMSG,A5_35,NUMBER,
+[Sun Oct 26 16:37:39 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_35,A5_9,I have received some of the relayed messages :D :3
+[Sun Oct 26 16:37:39 2025] [Instr_1] [SENT] SENDMSG,A5_35,A5_9,I have received some of the relayed messages :D :3A5_9
+```
+
+**Group A5_92 - Chatty bot:**
+```text
+[Sun Oct 26 16:46:03 2025] [A5_9] [RESPONSE] A5_9 sent SENDMSG,A5_92,A5_9,Guess we both use quite a bit of the cpu, trying to fix ':D
+[Sun Oct 26 16:47:17 2025] [A5_92] [SENT] SENDMSG,A5_92,A5_9,Guess we both use quite a bit of the cpu, trying to fix ':D
+```
+
+**Group A5_21 And A5_32 - Chatty bot and Indirect bot:**
+```text
+[Sun Oct 26 17:00:01 2025] [A5_21] [RESPONSE] A5_21 sent SENDMSG,A5_32,Instr_2,I guess you know that messages need to end with ETX () and start with SOH ().
+[Sun Oct 26 17:00:01 2025] [A5_52] [SENT] SENDMSG,A5_32,Instr_2,I guess you know that messages need to end with ETX () and start with SOH ().A5_9
+```
+
+**Group A5_29 - Chatty bot:**
+```text
+[Sun Oct 26 17:03:02 2025] [A5_29] [RESPONSE] A5_29 sent SENDMSG,A5_9,Instr_2,I guess you know that messages need to end with ETX () and start with SOH ().A5_29
+[Sun Oct 26 17:03:02 2025] [A5_29] [RESPONSE] A5_29 sent SENDMSG,A5_9,Instr_2,What do you do if a message contains some weird characters and another message, such as FSENDMSG,Instr_2,A5_9,I don't know how to parse messages correctly?A5_29
+```
+
+### Edgy bot
+
+Note: Logs got wiped that showed more
+
+```text
+[Sun Oct 26 16:39:47 2025] [A5_29] [SENT] SERVERS,A5_9,130.208.246.98,4009;A5_60,130.208.246.98,4060;A5_9,31.209.201.240,41748;A5_70,130.208.243.61,4070;A5_29,46.182.188.192,52716;
+
+[Sun Oct 26 17:41:17 2025] [A5_92] [SENT] SERVERS,A5_9,130.208.246.98,4009;A5_52,130.208.246.98,65535;A5_9,31.209.201.240,48280;A5_16,130.208.246.98,4016;A5_21,130.208.246.98,4021;A5_92,130.208.246.98,40248;
+
+[Fri Oct 24 03:47:01 2025] [A5_70] [SENT] SERVERS,A5_9,130.208.246.98,4009;A5_52,130.208.246.98,65535;A5_60,130.208.246.98,4060;A5_70,130.208.246.98,38838;
+```
+
+**Total:**
+- c) Chatty bot - 12 groups
+- d) Indirect bot - 5
+- e) Edgy bot - 3
