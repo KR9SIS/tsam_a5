@@ -115,7 +115,7 @@ class Client {
                 continue;
             }
 
-            // Tries to connect to a server from a received servers command, if all information is available
+            // Adds non connected servers received from a SERVER command to a possible new connection
             else if (this->name != parts[0] && parts.size() >= 3 && parts[1] != "?") {
                 struct conn new_conn;
                 new_conn.name = parts[0];

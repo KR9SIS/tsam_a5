@@ -32,13 +32,12 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     }
     std::shared_ptr<Client> client = std::make_shared<Client>();
 
+    // Update the client name if it still has the temporary name
     if (client->name == "tmp" && name != "tmp") {
         server_log_message(name, "INFO", "Updated client name: tmp to " + name);
     }
     client->name = name;
-    //client.ip = ip;
     client->client_num = server.get_server_clients(lock).size();
-
 
     client->fd = sock;
     socklen_t client_add_len = sizeof(client->addr);
@@ -69,11 +68,12 @@ int64_t open_client_socket(Server &server, std::string ip, int16_t port, std::st
     server.add_to_epoll(client->name, client->fd);
 
     server.dispatch(client_worker, std::ref(server), client->fd); // Dispatch READ Thread
-    send_helo(*client);
+    send_helo(*client); // Send HELO as the first command / message to the newly connected server
 
     return client->fd;
 }
 
+// Send the HELO command periodically to all directly conected servers, let's the server possibly connect to new servers
 void send_helos(Server &server) {
     std::unique_lock<std::mutex> server_lock(server.get_mutex(), std::defer_lock);
     server_log_message("EVERYONE", "INFO", "Sending Helos To Everyone");
@@ -92,34 +92,41 @@ void send_helos(Server &server) {
     }
 }
 
+// Periodically send STATUSREQ to all directly connected servers
 void send_statusreqs(Server &server) {
     std::unique_lock<std::mutex> server_lock(server.get_mutex());
     while (true) {
         for (auto &[_, client] : server.get_server_clients(server_lock)) {
             client->push_message("STATUSREQ");
         }
-        sleep(200);
+        sleep(200); // Sleep for 200 seconds
     }
 }
 
+// Sends the HELO command to a connected server
 void send_helo(Client &client) {
     if(client.helo_pending.load(std::memory_order_acquire)) return;
     client.push_message("HELO,A5_9");
     client.helo_pending.store(true, std::memory_order_release);
 }
 
+// Handles a received HELO command -> Command received: HELO,<group_id>
 int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, std::unique_lock<std::mutex>& lock) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
+    // If the connection has closed to the server that sent the command, do not do anything
     if(!client){
         server_log_message("NULL","ERROR","recv_helo Fetched A Null(Deleted) Client");
         return -1;
     }
     server_log_message(name, "RECV_HELO", name);
 
+    // If the server still has the temporary name, update the name to the group_id in the command
     if (client->name == "tmp" && name != "tmp") {
         server_log_message(name, "INFO", "Updated client name: tmp to " + name);
     }
     client->name = name;
+
+    // Respond with the SERVER command, with a list of servers it is directly connected to
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     std::string message("SERVERS,");
 
@@ -197,7 +204,7 @@ void keep_alive_loop(Server& server, std::unique_lock<std::mutex>& lock){
     }
 }
 
-// Does the same thing as keepalive just minimises errors and sends at seperate occations not all at same time
+// Sends the KEEPALIVE command to a specific server, with the number of messages being stored for them
 int16_t send_keepalive_helper(Client &client) {
     if (client.fd < 0) return -1; // skip closed sockets
 
@@ -207,7 +214,8 @@ int16_t send_keepalive_helper(Client &client) {
     return 0;
 }
 
-
+// If the number of messages > 0 in a KEEPALIVE command received, it sends the GETMSGS command to the sender to get the messages
+// the sender server is storing for this group
 int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     client.pending_messages += num_messages;
     if (num_messages > 0) {
@@ -217,6 +225,7 @@ int16_t recieve_keepalive(Client& client, uint16_t num_messages) {
     return 0;
 }
 
+// Handles a received GETMSGS,<group_id> command, responding with the messages the server is storing for the specified group
 int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_name, std::unique_lock<std::mutex>& lock) {
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
@@ -225,6 +234,7 @@ int16_t get_msgs(int64_t client_fd, Server &server, const std::string &group_nam
         server_log_message("NULL","ERROR", "get_msgs Fetched A Null(Deleted) Client");
         return -1;
     }
+    // If the servers' client sends the command, only send a single message being stored to it
     if (client->name == "A5_9") {
         server_log_message("SYSTEM", "INFO", "SENDING MESSAGE TO CNC");
         client->push_message(server.get_message_for_cnc(lock));
@@ -261,11 +271,13 @@ std::vector<std::string> parse_send_msg(const std::string& message){
     return sections;
 }
 
+// Handles a received SENMSG command
+//SENDMSG,<group_to>,<group_from>,<message><EOT><HOPS>
 int16_t send_msg(Server &server, std::string to_group, std::string from_group, const std::string &message,std::unique_lock<std::mutex>& lock) {
-    //SENDMSG,<group_to>,<group_from>,<message><EOT><HOPS>
     std::vector<std::string> message_tokens = parse_send_msg(message);
 
-    if (to_group == "A5_9" || to_group == "A5_09") {
+    // If the message is for the server's client, store the message in its queue
+    if (to_group == "A5_9" || to_group == "A5_09") { // A5_09 since the instructor server sometimes stores the groups name like that
         std::string message_with_group = "[" + message_tokens[2] + "] " + message_tokens[2];
         server.store_message_for_cnc(message_with_group, lock);
         return 0;
@@ -274,6 +286,7 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
     std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     std::shared_ptr<Client> buddy = nullptr;
 
+    // Check if the message is for a directly connected server
     for (auto&[_, client] : clients) {
         server_log_message("SYSTEM", "INFO", "Checking Clients For Recipient " + client->name);
         if (client->name == to_group) {
@@ -326,7 +339,8 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
     return 0;
 }
 
-
+// Sends the STATUSRESP command as a response to the STATUSREQ command, with a list of directly connected server names and 
+// the number of messages being held for them
 int16_t resp_status(Server& server, int64_t client_fd, std::unique_lock<std::mutex>& lock) {
     std::map<long, std::shared_ptr<Client>> clients = server.get_server_clients(lock);
     std::string resp("STATUSRESP,");
@@ -344,6 +358,7 @@ int16_t resp_status(Server& server, int64_t client_fd, std::unique_lock<std::mut
     return send_stream(resp, *client, lock);
 }
 
+// Handles all received messages / commands
 void message_handler(int64_t client_fd, Server &server, const std::string &command, std::unique_lock<std::mutex>& lock) {
     std::shared_ptr<Client> client = server.get_server_client(client_fd, lock);
     if(!client){
@@ -397,6 +412,7 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
                     break;
             }
 
+            // Try to connect to the new servers from a received SERVERS command
             for(auto& new_client : candidate_connections){
                 server_log_message("SYSTEM", "INFO", "Connecting To Client [IP]: " + new_client.ip + " [ID]: " + new_client.name + " [PORT]: " + std::to_string(new_client.port));
                 open_client_socket(server, new_client.ip, new_client.port, new_client.name, lock);
@@ -472,7 +488,6 @@ void handle_client_read(int64_t client_fd, Server &serv, std::unique_lock<std::m
     }
 
     int bytes_read = recv(client->fd, buffer, sizeof(buffer), 0);
-    //log_message("PROCESSING", "Received " + std::to_string(bytes_read) + " Bytes");
     if (bytes_read < 0) {
         if (errno != EAGAIN) {
             server_log_message(client->name, "ERROR", "recv() failed for " + client->name + ": " + strerror(errno), "handle_client_read");

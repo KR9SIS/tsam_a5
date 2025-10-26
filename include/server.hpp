@@ -40,11 +40,10 @@ class Server {
     epoll_event event, poll_events[MAX_EVENTS];
 
     int64_t server_start_listening(int16_t port) {
-        int64_t sock;              // socket opened for this port
-        int set = 1;               // for setsockopt
+        int64_t sock; // socket opened for this port
+        int set = 1; // for setsockopt
 
-        // Create socket for connection. Set to be non-blocking, so recv will
-        // return immediately if there isn't anything waiting to be read.
+        // Create socket for connection. Set to be non-blocking, so recv will return immediately if there isn't anything waiting to be read.
         if ((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
             server_log_message("A5_9", "ERROR","Failed to open socket", "server_start_listening");;
             return -1;
@@ -114,6 +113,10 @@ class Server {
         }
     }
 
+    /*
+        Handle messages for non-connected servers -> Unknown groups
+    */
+
     size_t group_num_messages(const std::string& group, std::unique_lock<std::mutex>& lock){
         if(!lock.owns_lock()){
             lock.lock();
@@ -167,6 +170,7 @@ class Server {
         dispatch(send_helos, std::ref(*this));
         dispatch(keep_alive_loop, std::ref(*this),std::ref(main_thread_lock));
         while (true) {
+            // Start by initialiseing a connection with the instructor servers
             if (clients.size() == 0) {
                 open_client_socket(std::ref(*this), "130.208.246.98", 5001, "Instr_1", std::ref(main_thread_lock));
                 open_client_socket(std::ref(*this), "130.208.246.98", 5002, "Instr_2", std::ref(main_thread_lock));
@@ -238,8 +242,7 @@ class Server {
         }
     }
 
-    /*Grabs The Socket FD For The Socket That Triggered Event At Index
-     * event_index*/
+    /*Grabs The Socket FD For The Socket That Triggered Event At Index event_index*/
     int64_t get_event_socket(int event_index) {
         return poll_events[event_index].data.fd;
     }
@@ -314,6 +317,7 @@ class Server {
         std::shared_ptr<Client> client = std::make_shared<Client>();
         socklen_t client_add_len = sizeof(client->addr);
 
+        // If the the server is blocked, do not accept the connection
         if (is_blocked(client->name)) {
             server_log_message(client->name, "INFO", "The client " + client->name + " is blocked!");
             return;
@@ -340,7 +344,7 @@ class Server {
 
         add_client(std::make_pair(client->fd, client), lock);
 
-        dispatch(send_helo, std::ref(*client)); // Initial Hello (This Will Exit As Soon As It's Done Sending)
+        dispatch(send_helo, std::ref(*client)); // Initial HELO (This Will Exit As Soon As It's Done Sending)
         dispatch(client_worker,std::ref(*this), client->fd);
     }
 
@@ -392,6 +396,7 @@ class Server {
         client_thread.detach();
     }
 
+    // Stores the messages for it's own client in a queue
     void store_message_for_cnc(const std::string &message, std::unique_lock<std::mutex>& lock) {
         if(!lock.owns_lock()){
             lock.lock();
@@ -404,6 +409,7 @@ class Server {
         }
     }
 
+    // Get's a message for own client to send to it if it sends GETMSG
     std::string get_message_for_cnc(std::unique_lock<std::mutex>& lock) {
         if(!lock.owns_lock()){
             lock.lock();
@@ -420,6 +426,7 @@ class Server {
         return message;
     }
 
+    // Gets a specific server connected to this server
     std::shared_ptr<Client> get_server_client(int64_t client_fd, std::unique_lock<std::mutex>& lock) { 
         if(!lock.owns_lock()){
             lock.lock();
@@ -437,6 +444,7 @@ class Server {
         return client; 
     }
 
+    // Gets all servers connected to this server
     std::map<int64_t, std::shared_ptr<Client>> get_server_clients(std::unique_lock<std::mutex>& lock) {
         if(!lock.owns_lock()){
             lock.lock();
