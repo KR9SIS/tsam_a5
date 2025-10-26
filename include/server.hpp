@@ -180,6 +180,7 @@ class Server {
 
     void start() {
         int sleep_ms = 1;
+        int sleep_per_event_ms = 5;
         std::vector<std::pair<std::shared_ptr<Client>, uint32_t>> triggered;
         dispatch(send_helos, std::ref(*this));
         dispatch(keep_alive_loop, std::ref(*this));
@@ -237,6 +238,7 @@ class Server {
                         triggered.push_back(std::make_pair(client, new_events));
                     }
                 }
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleep_per_event_ms));
             }
 
             if(!triggered.empty()){
