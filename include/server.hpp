@@ -150,7 +150,7 @@ class Server {
                         if(error == ETIMEDOUT) block_group(client->name);// Connection Timeout
                         if(error == ECONNREFUSED) block_group(client->name);// Connection Refused
                         if(error == ENETUNREACH) block_group(client->name);
-
+                        if(error == ENETRESET && (client->name != "A5_9" || client->name != "A5_09")) block_group(client->name);
 
                         delete_client(client->fd, main_thread_lock);
                         continue;
@@ -177,7 +177,7 @@ class Server {
                 for(auto &[client, events] : triggered){
                     client->notify(events);
                 }
-                main_thread_lock.unlock();
+                if(main_thread_lock.owns_lock()) main_thread_lock.unlock();
                 triggered.clear();
                 sleep_ms = 1;
             }

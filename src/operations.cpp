@@ -81,6 +81,11 @@ void send_helos(Server &server) {
         std::map<int64_t, std::shared_ptr<Client>> clients = server.get_server_clients(server_lock);
         int interval_ms = 2000 / std::max(1, (int)clients.size());
         for (auto &[_, client] : clients) {
+            if(client->name == "A5_9" || client->name == "A5_09"){ 
+                std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+                continue;
+            }
+
             send_helo(*client);
             std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
         }
@@ -167,10 +172,7 @@ int16_t recv_helo(int64_t client_fd, Server& server, const std::string &name, st
         message.append(std::to_string(ntohs(c->addr.sin_port))).append(";");
     }
 
-    if(!lock.owns_lock()){
-        lock.lock(); // Prevent Modification During Send
-    }
-    return send_stream(message, *client);
+    return send_stream(message, *client, lock);
 }
 
 void keep_alive_loop(Server& server, std::unique_lock<std::mutex>& lock){
@@ -265,7 +267,7 @@ int16_t send_msg(Server &server, std::string to_group, std::string from_group, c
     // <STH><Length><STX>SENDMSG,<group_to>,<group_from>,<message><EOT><HOPS><ETX>
     std::vector<std::string> message_tokens = parse_send_msg(message);
 
-    if (to_group == "A5_9") {
+    if (to_group == "A5_9" || to_group == "A5_09") {
         std::string message_with_group = "[" + message_tokens[2] + "] " + message_tokens[2];
         server.store_message_for_cnc(message_tokens[2], lock);
     }
@@ -325,10 +327,7 @@ int16_t resp_status(Server& server, int64_t client_fd, std::unique_lock<std::mut
     }
     resp.append(client->name).append(",").append(std::to_string(client->pending_messages));
 
-    if(!lock.owns_lock()){
-        lock.lock();
-    }
-    return send_stream(resp, *client);
+    return send_stream(resp, *client, lock);
 }
 
 void message_handler(int64_t client_fd, Server &server, const std::string &command, std::unique_lock<std::mutex>& lock) {
@@ -347,6 +346,26 @@ void message_handler(int64_t client_fd, Server &server, const std::string &comma
 
         std::vector<std::string> client_conn = extract_parameters(rest, ";");
         std::vector<Client::conn> candidate_connections;
+
+        std::unordered_set<std::string> seen_connections;// Testing for duplicates in SERVERS response
+        for(const auto& conn : client_conn){
+            if (conn.empty()) {
+                continue;
+            }
+
+            std::vector<std::string> parts = extract_parameters(conn,",");
+
+            if (parts.empty())
+                continue;
+
+            if(seen_connections.count(parts[0])){
+                //Found duplicate in SERVERS command, bot is not behaving well block
+                block_group(client->name);
+                server.delete_client(client->fd, lock);
+                return;
+            }
+            seen_connections.insert(parts[0]);
+        }
 
         client->update_connections(client_conn);
 
@@ -508,7 +527,7 @@ void handle_client_write(int64_t client_fd, Server &serv, std::unique_lock<std::
             break;
         }
         if (msg != "") {
-            if ((send_stream(msg, *client)) != -1) {
+            if ((send_stream(msg, *client, lock)) != -1) {
                 client->pop_message();
                 client->remove_first_message();
                 std::string command = msg.substr(0, msg.find(","));

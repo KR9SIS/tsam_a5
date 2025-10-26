@@ -13,6 +13,7 @@
 #include <string>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <unordered_set>
 #include <vector>
 
 class Client {

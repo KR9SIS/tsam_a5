@@ -7,7 +7,7 @@
 #include <string>
 #include <cstring>
 
-int16_t send_stream(const std::string &stream_str, Client& client) {
+int16_t send_stream(const std::string &stream_str, Client& client, std::unique_lock<std::mutex>& lock) {
     constexpr uint16_t frame_overhead = 1 + 2 + 1 + 1; // Size of: SOH + len + STX + ETX
     constexpr uint16_t MAX_STREAM_LEN = 5000;
 
@@ -34,6 +34,9 @@ int16_t send_stream(const std::string &stream_str, Client& client) {
         server_log_message(client.name, "ERROR", "Client Closed During Send " + client.name, "send_stream");
         return -1;
     }
+    if(!lock.owns_lock()){
+        lock.lock();
+    }
     while ((sent += send(client.fd, stream.data() + sent, stream.size() - sent, 0)) != stream.size()) {
         if (sent < 0) {
             server_log_message(client.name, "ERROR", "Failed to send stream(" + stream_str + ") to client " + std::to_string(client.fd), "send_stream");
@@ -43,6 +46,7 @@ int16_t send_stream(const std::string &stream_str, Client& client) {
             server_log_message(client.name, "SENDING", "Sent " + std::to_string(sent) + " bytes of " + std::to_string(stream.size()));
         }
     }
+    lock.unlock();
     server_log_message(client.name, "SENT", stream_str);
     return 0;
 }
