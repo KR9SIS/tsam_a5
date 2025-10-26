@@ -9,12 +9,12 @@
 
 int16_t send_stream(const std::string &stream_str, Client& client, std::unique_lock<std::mutex>& lock) {
     constexpr uint16_t frame_overhead = 1 + 2 + 1 + 1; // Size of: SOH + len + STX + ETX
-    constexpr uint16_t MAX_STREAM_LEN = 5000;
+    constexpr uint16_t MAX_STREAM_LEN = 5005;
 
     if (stream_str.size() > MAX_STREAM_LEN - frame_overhead) {
         server_log_message(client.name, "ERROR","Tried To Send A Message Exceeding Max Length");
         server_log_message(client.name, "ERROR", "Tried to send a message exceeding max length");
-        return -1;
+        return -2;
     }
 
     uint16_t total_len = static_cast<uint16_t>(stream_str.size() + frame_overhead);

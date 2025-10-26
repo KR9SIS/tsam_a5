@@ -300,9 +300,8 @@ class Server {
 
     /*Accepts And Registers A New Client Into The Polling Event System*/
     void register_client(std::unique_lock<std::mutex>& lock) {
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
 
         if (clients.size() == MAX_CLIENTS) { // If client connections are at max capacity delete a client
             bool client_deleted = false;
@@ -346,9 +345,8 @@ class Server {
 
         client->client_num = clients.size();
 
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock(); // Lock Again because of another critical section and the functions above do unlock
-        }
 
         // Add client socket to epoll
         if (add_to_epoll(client->name, client->fd) != 0) {
@@ -363,14 +361,15 @@ class Server {
     }
 
     void delete_client(int64_t client_fd, std::unique_lock<std::mutex>& lock) {
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
         std::shared_ptr<Client> client;
         // Hold server lock only while we modify server state
         auto it = clients.find(client_fd);
-        if (it == clients.end())
+        if (it == clients.end()){
+            lock.unlock();
             return;
+        }
         client = it->second;
         clients.erase(client->fd);
         client_names.erase(client->name);
@@ -383,24 +382,22 @@ class Server {
         }
         // Now perform client-specific cleanup under the client mutex
         client->close_con(epoll_fd);
-        if(lock.owns_lock()){
+        if(lock.owns_lock())
             lock.unlock();
-        }
     }
 
     void add_client(std::pair<int64_t, std::shared_ptr<Client>> new_client, std::unique_lock<std::mutex>&lock){
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
         if (!new_client.second) {
+            lock.unlock();
             return;
         }
         new_client.second->set_epoll_fd(epoll_fd);
         clients.insert(new_client);
         client_names.insert(new_client.second->name);
-        if(lock.owns_lock()){
+        if(lock.owns_lock())
             lock.unlock();
-        }
     }
 
     /*Dispatches a new thread running handler with the supplied arguments*/
@@ -412,61 +409,58 @@ class Server {
 
     // Stores the messages for it's own client in a queue
     void store_message_for_cnc(const std::string &message, std::unique_lock<std::mutex>& lock) {
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
 
         message_store.push(message);
 
-        if(lock.owns_lock()){
+        if(lock.owns_lock())
             lock.unlock();
-        }
     }
 
     // Get's a message for own client to send to it if it sends GETMSG
     std::string get_message_for_cnc(std::unique_lock<std::mutex>& lock) {
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
+
         if (message_store.empty()) {
+            lock.unlock();
             return "No Messages!!";
         }
 
         std::string message = message_store.front();
         message_store.pop();
-        if(lock.owns_lock()){
+        if(lock.owns_lock())
             lock.unlock();
-        }
         return message;
     }
 
     // Gets a specific server connected to this server
     std::shared_ptr<Client> get_server_client(int64_t client_fd, std::unique_lock<std::mutex>& lock) { 
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
 
         auto it = clients.find(client_fd);
         if (it == clients.end()) {
+            lock.unlock();
             return nullptr;
         }
         auto client = it->second;
-        if(lock.owns_lock()){
+        if(lock.owns_lock())
             lock.unlock();
-        }
 
         return client; 
     }
 
     // Gets all servers connected to this server
     std::map<int64_t, std::shared_ptr<Client>> get_server_clients(std::unique_lock<std::mutex>& lock) {
-        if(!lock.owns_lock()){
+        if(!lock.owns_lock())
             lock.lock();
-        }
+        
         auto snap_shot = clients;
-        if(lock.owns_lock()){
+        if(lock.owns_lock())
             lock.unlock();
-        }
+
         return clients; 
     }
 

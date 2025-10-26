@@ -548,21 +548,23 @@ void handle_client_write(int64_t client_fd, Server &serv, std::unique_lock<std::
 
     while(true){
         std::string msg = client->front_message();
-        if(msg == ""){
+        if(msg == "")
             break;
+        int bytes_sent = send_stream(msg, *client, lock);
+        if (bytes_sent > -1) {
+            client->pop_message();
+            client->remove_first_message();
+            std::string command = msg.substr(0, msg.find(","));
+            if(command == "HELO"){
+                client->helo_pending.store(false, std::memory_order_release);
+            }
+            if(command == "KEEPALIVE"){
+                client->keepalive_pending.store(false, std::memory_order_release);
+            }
         }
-        if (msg != "") {
-            if ((send_stream(msg, *client, lock)) != -1) {
-                client->pop_message();
-                client->remove_first_message();
-                std::string command = msg.substr(0, msg.find(","));
-                if(command == "HELO"){
-                    client->helo_pending.store(false, std::memory_order_release);
-                }
-                if(command == "KEEPALIVE"){
-                    client->keepalive_pending.store(false, std::memory_order_release);
-                }
-            };
+        else if(bytes_sent == -2){// Stream Too Big
+            server_log_message("SYSTEM", "ERROR", "Sending Message Over Max Payload Size, Discarding Message");
+            client->pop_message();
         }
     }
 
